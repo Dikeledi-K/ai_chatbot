@@ -21,7 +21,7 @@ StudyBuddy gives students a focused learning companion for explanations, note su
 
 ## 4. How AI is used
 
-The app uses an existing OpenAI chat model through a server-side API route. It does **not** train a model. The browser sends a validated request to Express, which adds the system prompt and feature instruction before calling the model. The API key never reaches the browser.
+The app uses an existing Gemini or OpenAI chat model through a server-side API route. It does **not** train a model. The browser sends a validated request to Express, which adds the system prompt and feature instruction before calling the model. The API key never reaches the browser. Gemini is selected when `GEMINI_API_KEY` is configured; OpenAI is supported as a fallback.
 
 ## 5. Prompt engineering approach
 
@@ -33,7 +33,7 @@ The interface visibly warns: “StudyBuddy AI can make mistakes. Always verify i
 
 ## 7. Technology
 
-HTML, CSS and browser JavaScript provide the responsive interface. Node.js and Express provide the API boundary. `dotenv` loads local environment variables. Node’s built-in test runner covers validation.
+HTML, CSS and browser JavaScript provide the responsive interface. Node.js and Express provide the API boundary. `dotenv` loads local environment variables. Gemini and OpenAI provide the AI model options. Node’s built-in test runner covers validation.
 
 ## 8. Installation
 
@@ -44,7 +44,7 @@ npm install
 copy .env.example .env
 ```
 
-Open `.env` and set `OPENAI_API_KEY`. You may optionally change `OPENAI_MODEL` and `PORT`. Never commit `.env`.
+Open `.env` and set `GEMINI_API_KEY` and `GEMINI_MODEL`, or configure `OPENAI_API_KEY` and `OPENAI_MODEL` as a fallback. You may optionally change `PORT`. Never commit `.env`.
 
 ## 9. Run
 

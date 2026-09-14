@@ -14,8 +14,47 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/tests', express.static(path.join(__dirname, 'tests')));
 
 app.get('/api/health', (_request, response) => {
-  response.json({ ok: true, aiConfigured: Boolean(process.env.OPENAI_API_KEY) });
+  response.json({ ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY) });
 });
+
+async function requestGemini(prompt, signal) {
+  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST',
+    signal,
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.2 }
+    })
+  });
+  const result = await aiResponse.json();
+  if (!aiResponse.ok) {
+    const apiError = new Error(result.error?.message || 'Gemini request failed');
+    apiError.status = aiResponse.status;
+    throw apiError;
+  }
+  return result.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('').trim();
+}
+
+async function requestOpenAI(prompt, signal) {
+  const baseUrl = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
+  const aiResponse = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    signal,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.2, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }] })
+  });
+  const result = await aiResponse.json();
+  if (!aiResponse.ok) {
+    const apiError = new Error(result.error?.message || 'OpenAI request failed');
+    apiError.code = result.error?.code;
+    apiError.status = aiResponse.status;
+    throw apiError;
+  }
+  return result.choices?.[0]?.message?.content;
+}
 
 app.post('/api/chat', async (request, response) => {
   const { message, feature = 'chat', context = '' } = request.body ?? {};
@@ -23,7 +62,7 @@ app.post('/api/chat', async (request, response) => {
   if (!messageCheck.valid) return response.status(400).json({ error: messageCheck.message });
   if (!Object.hasOwn(FEATURE_INSTRUCTIONS, feature)) return response.status(400).json({ error: 'That study mode is not available.' });
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY) {
     return response.status(503).json({ error: 'The AI service is not configured yet. Add OPENAI_API_KEY to your .env file, then restart StudyBuddy.' });
   }
 
@@ -32,27 +71,16 @@ app.post('/api/chat', async (request, response) => {
   const timeout = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.2, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }] })
-    });
-    const result = await aiResponse.json();
-    if (!aiResponse.ok) {
-      const apiError = new Error(result.error?.message || 'AI request failed');
-      apiError.code = result.error?.code;
-      apiError.status = aiResponse.status;
-      throw apiError;
-    }
-    const answer = result.choices?.[0]?.message?.content;
+    const answer = process.env.GEMINI_API_KEY
+      ? await requestGemini(prompt, controller.signal)
+      : await requestOpenAI(prompt, controller.signal);
     if (!answer) throw new Error('The AI returned an empty response');
     response.json({ answer });
   } catch (error) {
     const message = error.name === 'AbortError'
       ? 'The AI took too long to respond. Please try again.'
       : error.code === 'insufficient_quota' || error.message.includes('no credits remaining')
-        ? 'The AI service has no credits available right now. Add billing credits to your OpenAI project, then restart StudyBuddy.'
+        ? 'The AI service has no credits available right now. Add billing credits to your AI provider project, then restart StudyBuddy.'
         : error.status === 401
           ? 'The AI service rejected the API key. Check that your key is valid, then restart StudyBuddy.'
           : 'StudyBuddy could not reach the AI service. Check your connection and try again.';
