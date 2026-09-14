@@ -99,8 +99,10 @@ app.post('/api/feature', (request, response) => {
   const messages = {
     planner: `Subject: ${data.subject}\nExam date: ${data.examDate}\nNumber of topics: ${data.topics}\nAvailable study time: ${data.hours} hours per week`,
     exam: `Subject: ${data.subject}\nExam date: ${data.examDate}\nKey topics: ${data.topics}\nFocus area: ${data.focus}`,
-    quiz: `Create a practice quiz about: ${data.topic}`,
-    assignment: data.question
+    quiz: `Create a ${data.difficulty || 'medium'}-difficulty practice quiz about: ${data.topic}. Focus: ${data.focus || 'general revision'} .`,
+    assignment: data.question,
+    coding: `Analyse this ${data.language} code and explain it carefully. Problem description: ${data.question || 'No extra context provided.'}\n\nCode:\n${data.code}`,
+    career: `Provide general career guidance for: ${data.career}. Include overview, skills, subjects, beginner projects, learning path and related careers.`
   };
   response.json({ message: messages[feature] });
 });

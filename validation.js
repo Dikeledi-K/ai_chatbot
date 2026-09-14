@@ -11,16 +11,32 @@ export function validateInput(value) {
 }
 
 export function validateFeaturePayload(feature, data = {}) {
+  const supportedLanguages = new Set(['python', 'java', 'javascript']);
   const fields = {
     planner: ['subject', 'examDate', 'topics', 'hours'],
     exam: ['subject', 'examDate', 'topics', 'focus'],
     quiz: ['topic'],
-    assignment: ['question']
+    assignment: ['question'],
+    coding: ['language', 'code'],
+    career: ['career']
   }[feature] || [];
 
   for (const field of fields) {
-    const result = validateInput(String(data[field] ?? ''));
+    const value = String(data[field] ?? '');
+    const result = validateInput(value);
     if (!result.valid) return { valid: false, message: `Please complete the ${field} field.` };
   }
+
+  if (feature === 'coding') {
+    const language = String(data.language ?? '').trim().toLowerCase();
+    if (!supportedLanguages.has(language)) {
+      return { valid: false, message: 'Please choose a supported language: Python, Java, or JavaScript.' };
+    }
+  }
+
+  if (feature === 'quiz' && typeof data.difficulty === 'string' && data.difficulty.trim() && !['easy', 'medium', 'hard'].includes(data.difficulty.trim().toLowerCase())) {
+    return { valid: false, message: 'Please choose an easy, medium, or hard difficulty.' };
+  }
+
   return { valid: true };
 }
