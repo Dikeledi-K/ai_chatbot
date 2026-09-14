@@ -18,7 +18,7 @@ export const FEATURE_INSTRUCTIONS = {
   explain: 'Explain the topic for a beginner. Use a simple definition, 2-4 key points, one example, and finish with a quick check question.',
   summarize: 'Summarise only the supplied notes into 3-7 concise bullet points. Add a separate "AI-added context" section only if it is necessary and clearly label it.',
   planner: 'Create a realistic study plan from the supplied details. Include dates or sessions, topic coverage, breaks, and a final review. State assumptions.',
-  quiz: 'Create a short practice quiz about the topic. Start with one question and wait for the student answer. Do not reveal the answer before they try.',
+  quiz: 'Run a practice quiz using the conversation context. If the student is answering the previous question (for example, with "A"), evaluate that answer first, explain why it is correct or incorrect, update the score, and then ask the next question. Only create a new quiz question when no previous question is awaiting an answer. Do not restart the quiz or ask for the topic again.',
   assignment: 'Coach the student through the assignment. Explain what it asks, break it into steps, suggest an outline, and provide questions that help them produce their own work. Do not write a submission-ready response.',
   chat: 'Answer the student question helpfully. If it is ambiguous, ask one clarifying question before making assumptions.'
 };
