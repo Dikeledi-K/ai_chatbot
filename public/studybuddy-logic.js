@@ -19,44 +19,53 @@ export function calculateQuizScore(questions = [], answers = {}) {
 }
 
 export function buildStudyCoachFeedback(questions = [], answers = {}) {
-  const uniqueValues = (items = []) => [...new Set(items.filter(Boolean))];
-  const strengths = [];
-  const weaknesses = [];
+  const getConceptName = (question, index) => question.concept || `Topic ${index + 1}`;
+  const correctConcepts = [];
+  const incorrectConcepts = [];
 
   questions.forEach((question, index) => {
     const selected = Number(answers[question.id ?? index] ?? -1);
     const isCorrect = Number(question.correctAnswerIndex) === selected;
+    const concept = getConceptName(question, index);
+
     if (isCorrect) {
-      strengths.push(question.concept || 'Core topic');
+      correctConcepts.push(concept);
     } else {
-      weaknesses.push(question.concept || 'Core topic');
+      incorrectConcepts.push(concept);
     }
   });
 
-  const strengthsList = uniqueValues(strengths);
-  const weaknessesList = uniqueValues(weaknesses);
+  const strengthsList = [...new Set(correctConcepts)].filter((item) => !incorrectConcepts.includes(item));
+  const weaknessesList = [...new Set(incorrectConcepts)].filter((item) => !correctConcepts.includes(item));
   const { correct, total } = calculateQuizScore(questions, answers);
 
   const recommendations = [];
 
   if (weaknessesList.length > 0) {
-    const weakArea = weaknessesList[0];
-    recommendations.push(`Review ${weakArea.toLowerCase()}.`);
+    recommendations.push(`Review ${weaknessesList[0].toLowerCase()}.`);
     if (weaknessesList.length > 1) {
       recommendations.push(`Practise ${weaknessesList.slice(1).map((item) => item.toLowerCase()).join(' and ')}.`);
     }
     recommendations.push('Take another quiz focusing on these topics.');
+  } else if (strengthsList.length > 0) {
+    recommendations.push('Keep building on your strengths and try a slightly harder challenge next.');
+    recommendations.push('Take a brief recap quiz to stay sharp.');
   } else {
-    recommendations.push('Keep reviewing your strongest topics and try a slightly harder challenge next.');
-    recommendations.push('Take a short recap quiz to stay sharp.');
+    recommendations.push('Keep going — even small, consistent revision is helping you improve.');
+    recommendations.push('Review the key ideas from the questions and try a shorter follow-up quiz.');
   }
+
+  const positivity = strengthsList.length > 0
+    ? 'You are doing well with:'
+    : 'You are building confidence with:';
 
   return {
     score: `${correct}/${total}`,
     percentage: total ? Math.round((correct / total) * 100) : 0,
     strengths: strengthsList,
     weaknesses: weaknessesList,
-    recommendations
+    recommendations,
+    positivity
   };
 }
 
@@ -88,31 +97,72 @@ export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', 
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
-  const difficultyMap = { easy: 2, medium: 3, hard: 4 };
-  const challenge = difficultyMap[difficulty?.toLowerCase()] || 3;
 
-  const baseConcepts = focusList.length ? focusList : ['Core concepts', 'Applications', 'Problem solving'];
-  const concepts = [...baseConcepts.slice(0, 3), 'Key terminology'];
+  const baseConcepts = focusList.length ? focusList : ['Core concepts', 'Applications', 'Problem solving', 'Key terminology', 'Examples'];
+  const conceptPool = [...baseConcepts];
+  const questionTemplates = [
+    {
+      prompt: `Which option best explains ${topicLabel} in a ${difficulty} challenge?`,
+      generator: (concept) => ({
+        correct: `The best answer for ${topicLabel} is to understand the idea and apply it in a clear, accurate way.`,
+        wrongs: [
+          `The best answer is to guess without checking the concept.`,
+          `The best answer is to memorise a rule without understanding why it works.`,
+          `The best answer is to copy an answer without checking the logic.`
+        ]
+      })
+    },
+    {
+      prompt: `Which statement best matches ${topicLabel} when you are revising ${difficulty} work?`,
+      generator: (concept) => ({
+        correct: `A strong understanding of ${concept.toLowerCase()} helps you explain ${topicLabel} correctly and apply it in practice.`,
+        wrongs: [
+          `A good strategy is to skip examples and rely on luck.`,
+          `A good strategy is to memorise the answer without understanding the reason.`,
+          `A good strategy is to ignore the topic and hope it does not matter.`
+        ]
+      })
+    },
+    {
+      prompt: `Which answer shows the best way to approach ${topicLabel}?`,
+      generator: (concept) => ({
+        correct: `The best approach is to build understanding, check your reasoning, and apply the idea to a real example.`,
+        wrongs: [
+          `The best approach is to guess and move on.`,
+          `The best approach is to avoid practice and rely only on memory.`,
+          `The best approach is to copy someone else's answer without understanding it.`
+        ]
+      })
+    },
+    {
+      prompt: `What is the strongest response when working on ${topicLabel}?`,
+      generator: (concept) => ({
+        correct: `The strongest response is to understand the ${concept.toLowerCase()} and apply it carefully.`,
+        wrongs: [
+          `The strongest response is to guess randomly.`,
+          `The strongest response is to skip checking the logic.`,
+          `The strongest response is to copy the answer without effort.`
+        ]
+      })
+    }
+  ];
 
-  return Array.from({ length: 5 }, (_, index) => ({
-    id: `fallback-${index + 1}`,
-    concept: concepts[index % concepts.length],
-    question: `Which statement best matches ${topicLabel} at a ${difficulty} level?`,
-    options: [
-      `The best answer for ${topicLabel} is understanding the main idea and applying it correctly.`,
-      `The best answer is to guess without checking the concept.`,
-      `The best answer is to skip practice and rely on memory only.`,
-      `The best answer is to copy the answer without explanation.`
-    ],
-    correctAnswerIndex: 0,
-    explanation: `A strong answer for ${topicLabel} should focus on understanding, applying the concept, and checking your reasoning.`
-  })).map((question, index) => ({
-    ...question,
-    question: index === 0
-      ? `Which option best describes ${topicLabel} in a ${difficulty} challenge?`
-      : question.question,
-    options: question.options.map((option, optionIndex) => optionIndex === 0 ? option : option)
-  }));
+  return Array.from({ length: 5 }, (_, index) => {
+    const concept = conceptPool[index % conceptPool.length];
+    const template = questionTemplates[index % questionTemplates.length];
+    const content = template.generator(concept);
+    const options = [content.correct, ...content.wrongs];
+
+    return {
+      id: `fallback-${index + 1}`,
+      concept,
+      question: template.prompt,
+      options,
+      correctAnswerIndex: 0,
+      explanation: `A strong answer for ${topicLabel} is to understand the concept, test your thinking, and practise with examples.`,
+      difficulty
+    };
+  });
 }
 
 export function buildCodingPrompt(language, code, problem = '') {

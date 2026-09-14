@@ -39,3 +39,19 @@ test('builds study coach feedback from right and wrong answers', () => {
   assert.deepEqual(feedback.weaknesses, ['Loops']);
   assert.ok(feedback.recommendations.some((item) => item.toLowerCase().includes('review loops')));
 });
+
+test('keeps concepts out of both strengths and weaknesses when they are mixed or repeated', () => {
+  const questions = [
+    { id: 'q1', concept: 'Loops', correctAnswerIndex: 0 },
+    { id: 'q2', concept: 'Loops', correctAnswerIndex: 1 },
+    { id: 'q3', concept: 'Conditionals', correctAnswerIndex: 2 },
+    { id: 'q4', concept: 'Variables', correctAnswerIndex: 0 }
+  ];
+
+  const feedback = buildStudyCoachFeedback(questions, { q1: 0, q2: 0, q3: 2, q4: 2 });
+
+  assert.ok(!feedback.strengths.includes('Loops'));
+  assert.ok(!feedback.weaknesses.includes('Loops'));
+  assert.ok(feedback.strengths.includes('Conditionals'));
+  assert.ok(feedback.weaknesses.includes('Variables'));
+});

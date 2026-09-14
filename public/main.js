@@ -58,7 +58,7 @@ function renderQuizQuestion() {
 
 function finishQuiz() {
   if (!state.quizState) return;
-  const { score, strengths, weaknesses, recommendations } = buildStudyCoachFeedback(state.quizState.questions, state.quizState.answers);
+  const { score, strengths, weaknesses, recommendations, positivity } = buildStudyCoachFeedback(state.quizState.questions, state.quizState.answers);
   const summary = document.createElement('div');
   summary.className = 'message assistant';
   summary.innerHTML = `
@@ -67,7 +67,7 @@ function finishQuiz() {
       <div class="quiz-summary">
         <div class="score-line">Score: ${score}</div>
         <div class="mini-section">
-          <h4>You are doing well with:</h4>
+          <h4>${positivity}</h4>
           <ul>${strengths.length ? strengths.map((item) => `<li>${escapeHtml(item)}</li>`).join('') : '<li>Keep going — you are building strong foundations.</li>'}</ul>
         </div>
         <div class="mini-section">
