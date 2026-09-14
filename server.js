@@ -98,6 +98,7 @@ app.post('/api/feature', (request, response) => {
 
   const messages = {
     planner: `Subject: ${data.subject}\nExam date: ${data.examDate}\nNumber of topics: ${data.topics}\nAvailable study time: ${data.hours} hours per week`,
+    exam: `Subject: ${data.subject}\nExam date: ${data.examDate}\nKey topics: ${data.topics}\nFocus area: ${data.focus}`,
     quiz: `Create a practice quiz about: ${data.topic}`,
     assignment: data.question
   };

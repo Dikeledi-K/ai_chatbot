@@ -6,4 +6,10 @@ test('rejects empty input', () => assert.equal(validateInput('   ').valid, false
 test('rejects input longer than the limit', () => assert.equal(validateInput('a'.repeat(6001)).valid, false));
 test('accepts a normal question', () => assert.equal(validateInput('Explain gravity').valid, true));
 test('requires planner fields', () => assert.equal(validateFeaturePayload('planner', { subject: 'Math' }).valid, false));
+test('accepts a complete exam preparation request', () => assert.equal(validateFeaturePayload('exam', {
+  subject: 'Biology',
+  examDate: '2026-10-20',
+  topics: 'Cells and photosynthesis',
+  focus: 'Photosynthesis'
+}).valid, true));
 test('accepts a complete quiz request', () => assert.equal(validateFeaturePayload('quiz', { topic: 'Photosynthesis' }).valid, true));

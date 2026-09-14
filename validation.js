@@ -13,6 +13,7 @@ export function validateInput(value) {
 export function validateFeaturePayload(feature, data = {}) {
   const fields = {
     planner: ['subject', 'examDate', 'topics', 'hours'],
+    exam: ['subject', 'examDate', 'topics', 'focus'],
     quiz: ['topic'],
     assignment: ['question']
   }[feature] || [];
