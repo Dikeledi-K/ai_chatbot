@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#12352f" />
+    <title>StudyBuddy AI | Your friendly AI study assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="StudyBuddy AI home"><span class="brand-mark">✦</span><span>StudyBuddy <em>AI</em></span></a>
+        <div class="status-pill"><span class="status-dot"></span><span id="status-text">Ready to learn</span></div>
+      </header>
+
+      <main class="layout">
+        <section class="welcome-panel">
+          <div class="eyebrow">WEEK 1 · SPRINT 1</div>
+          <h1>Make the next<br /><span>idea click.</span></h1>
+          <p>Your friendly AI study assistant for clearer explanations, smarter revision and confident learning.</p>
+          <div class="notice"><span class="notice-icon">i</span><span>StudyBuddy AI can make mistakes. Always verify important information and use AI as a learning assistant, not a replacement for your teacher.</span></div>
+        </section>
+
+        <section class="workspace" aria-label="StudyBuddy workspace">
+          <div class="feature-grid" aria-label="Study tools">
+            <button class="feature-card active" data-feature="chat"><span class="feature-icon">◌</span><span><strong>Ask anything</strong><small>Start a study chat</small></span><span class="arrow">→</span></button>
+            <button class="feature-card" data-feature="explain"><span class="feature-icon">✧</span><span><strong>Explain a topic</strong><small>Make it make sense</small></span><span class="arrow">→</span></button>
+            <button class="feature-card" data-feature="summarize"><span class="feature-icon">≡</span><span><strong>Summarise notes</strong><small>Find the key ideas</small></span><span class="arrow">→</span></button>
+            <button class="feature-card" data-feature="planner"><span class="feature-icon">▦</span><span><strong>Study planner</strong><small>Build a realistic plan</small></span><span class="arrow">→</span></button>
+            <button class="feature-card" data-feature="quiz"><span class="feature-icon">?</span><span><strong>Quiz me</strong><small>Practise and improve</small></span><span class="arrow">→</span></button>
+            <button class="feature-card" data-feature="assignment"><span class="feature-icon">↗</span><span><strong>Assignment helper</strong><small>Plan your own work</small></span><span class="arrow">→</span></button>
+          </div>
+
+          <div class="chat-panel">
+            <div class="chat-heading"><div><div class="eyebrow" id="mode-label">STUDY CHAT</div><h2 id="mode-title">What are you working on?</h2></div><button class="clear-button" id="clear-chat" title="Clear conversation">Clear chat</button></div>
+            <div class="messages" id="messages" aria-live="polite">
+              <div class="message assistant"><div class="avatar">✦</div><div class="bubble"><p>Hi! I’m StudyBuddy. Ask me to explain a tricky topic, organise your notes, plan revision, or quiz you.</p><div class="suggestions"><button data-suggestion="Explain photosynthesis to me like I am a beginner.">Explain a topic</button><button data-suggestion="Help me make a study plan for my next test.">Plan my study</button></div></div></div>
+            </div>
+            <form class="composer" id="chat-form"><label class="sr-only" for="message-input">Your study question</label><textarea id="message-input" rows="2" maxlength="6000" placeholder="Ask a question or paste your notes..." required></textarea><div class="composer-footer"><span class="input-hint">Enter to send · Shift + Enter for a new line</span><button class="send-button" type="submit" id="send-button"><span>Send</span><span>↑</span></button></div></form>
+          </div>
+        </section>
+      </main>
+      <footer><span>Built for learning, with responsible AI at the centre.</span><a href="/tests/test-cases.md">Testing evidence</a></footer>
+    </div>
+    <div class="modal-backdrop hidden" id="feature-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="Close">×</button><div class="eyebrow" id="modal-kicker">STUDY PLANNER</div><h2 id="modal-title">Build a plan that fits your week.</h2><form id="feature-form"></form></div></div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
