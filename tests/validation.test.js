@@ -19,7 +19,14 @@ test('rejects quiz question counts outside the supported range', () => {
   assert.equal(validateFeaturePayload('quiz', { topic: 'Photosynthesis', questionCount: '21' }).valid, false);
 });
 test('creates the requested number of fallback quiz questions', () => {
-  assert.equal(createFallbackQuiz('Photosynthesis', 'medium', '', 8).length, 8);
+  const questions = createFallbackQuiz('Photosynthesis', 'medium', '', 8);
+  assert.equal(questions.length, 8);
+  assert.ok(new Set(questions.map((question) => question.question)).size > 1);
+  assert.ok(new Set(questions.map((question) => question.correctAnswerIndex)).size > 1);
+  questions.forEach((question) => {
+    assert.equal(new Set(question.options).size, 4);
+    assert.equal(question.options[question.correctAnswerIndex].includes('guess'), false);
+  });
 });
 test('accepts supported coding inputs', () => assert.equal(validateFeaturePayload('coding', { language: 'python', code: 'print(1 + 1)' }).valid, true));
 test('validates unsupported coding languages', () => assert.equal(validateFeaturePayload('coding', { language: 'ruby', code: 'puts 1' }).valid, false));
