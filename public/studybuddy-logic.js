@@ -91,15 +91,20 @@ export function getFriendlyApiErrorMessage(error = {}) {
   return 'StudyBuddy could not reach the AI service. Check your connection and try again.';
 }
 
-export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', focus = '', questionCount = 5) {
+export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', focus = '', questionCount = 5, sourceText = '') {
   const topicLabel = topic.trim() || 'your topic';
   const count = Math.min(20, Math.max(1, Number(questionCount) || 5));
   const focusList = focus
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+  const sourceConcepts = String(sourceText || '')
+    .split(/[\n.!?]/)
+    .map((item) => item.replace(/\s+/g, ' ').trim())
+    .filter((item) => item.length >= 3 && item.length <= 80)
+    .slice(0, 8);
 
-  const baseConcepts = focusList.length ? focusList : ['Core concepts', 'Applications', 'Problem solving', 'Key terminology', 'Examples'];
+  const baseConcepts = focusList.length ? focusList : sourceConcepts.length ? sourceConcepts : ['Core concepts', 'Applications', 'Problem solving', 'Key terminology', 'Examples'];
   const conceptPool = [...baseConcepts];
   const questionTemplates = [
     {

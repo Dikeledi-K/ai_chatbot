@@ -18,6 +18,7 @@ StudyBuddy gives students a focused learning companion for explanations, note su
 - Generate a quiz that asks one question at a time.
 - Break down an assignment without writing submission-ready work.
 - Normal chat, loading states, validation, timeouts and friendly API errors.
+- Reusable Upload Materials control for text-based study material, with temporary PDF, DOCX and TXT extraction.
 
 ## 4. How AI is used
 
@@ -58,18 +59,24 @@ Open http://localhost:3000. During development, `npm run dev` restarts the serve
 
 Run the automated checks with `npm test`. The manual evidence table in [tests/test-cases.md](tests/test-cases.md) contains more than 20 cases across normal, difficult, ambiguous, unknown, invalid, API-error, planning, summarisation, quiz, assignment and cheating scenarios. Replace “To record” with the observed result during the team test session and attach screenshots to the presentation.
 
-## 11. Known limitations
+## 11. Upload materials
+
+The shared composer accepts PDF, DOCX and TXT files up to 10 MB. Files are held in memory only, processed by the private `/api/upload` route, and are not written to `public/` or permanently stored. Extracted text is passed as context to the existing AI route for explanations, summaries, planners, quizzes, assignment help, exam preparation, coding help and career guidance.
+
+JPG, JPEG and PNG files are recognized but currently return a friendly unsupported-processing message because the existing text-only AI request format does not send image content to the configured provider. Uploaded code is treated as text and is never executed.
+
+## 12. Known limitations
 
 - A valid OpenAI API key and internet connection are needed for live answers.
 - The current quiz score is kept in the conversation rather than persisted in a database.
-- There is no login, saved history or teacher-managed knowledge base.
+- There is no login, server-side history or teacher-managed knowledge base.
 - AI output still requires human verification.
 
-## 12. Future improvements
+## 13. Future improvements
 
 Add streamed responses, saved study plans, a trusted course-material context option, richer quiz score tracking, accessibility audits and automated API contract tests.
 
-## 13. Team contributions
+## 14. Team contributions
 
 | Member | Role | Contribution |
 |---|---|---|
@@ -81,7 +88,7 @@ Add streamed responses, saved study plans, a trusted course-material context opt
 
 Demonstrate teamwork by showing the shared task board, short commit history, peer review notes, test evidence and a presentation where each member explains their contribution.
 
-## 14. Demonstration flow
+## 15. Demonstration flow
 
 1. Introduce the student problem and the responsible-AI notice.
 2. Ask “Explain photosynthesis to me like I am a beginner” and point out the simple structure.
@@ -92,6 +99,6 @@ Demonstrate teamwork by showing the shared task board, short commit history, pee
 7. Ask for exam answers to demonstrate the refusal and legitimate study redirect.
 8. Show `npm test` and the manual test table as evidence for working features and problem solving.
 
-## 15. Scope note
+## 16. Scope note
 
 This project demonstrates prompt engineering, responsible AI, validation, testing and API integration. It is a learning prototype, not a guarantee of factual accuracy.
