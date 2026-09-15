@@ -76,7 +76,33 @@
             <div class="messages" id="messages" aria-live="polite">
               <div class="message assistant"><div class="avatar">✦</div><div class="bubble"><p>Hi! I’m StudyBuddy. Ask me to explain a tricky topic, organise your notes, plan revision, or quiz you.</p><div class="suggestions"><button data-suggestion="Explain photosynthesis to me like I am a beginner.">Explain a topic</button><button data-suggestion="Help me make a study plan for my next test.">Plan my study</button></div></div></div>
             </div>
-            <form class="composer" id="chat-form"><label class="sr-only" for="message-input">Your study question</label><textarea id="message-input" rows="2" maxlength="6000" placeholder="Ask a question or paste your notes..." required></textarea><div class="composer-footer"><span class="input-hint">Enter to send · Shift + Enter for a new line</span><button class="send-button" type="submit" id="send-button"><span>Send</span><span>↑</span></button></div></form>
+            <form class="composer" id="chat-form">
+              <div class="upload-materials" id="upload-materials">
+                <div class="upload-materials__heading"><span class="eyebrow">Upload materials</span><span class="upload-status" id="upload-status">Optional</span></div>
+                <label class="upload-dropzone" id="upload-dropzone" for="material-file">
+                  <span class="upload-dropzone__icon" aria-hidden="true">↥</span>
+                  <span><strong>Choose a file</strong> or drag and drop it here</span>
+                  <small>PDF, DOCX, TXT, JPG, JPEG, PNG · max 10 MB</small>
+                </label>
+                <input class="sr-only" id="material-file" type="file" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/jpeg,image/png" />
+                <div class="upload-file hidden" id="upload-file" aria-live="polite">
+                  <span class="upload-file__icon" aria-hidden="true">📄</span>
+                  <div class="upload-file__details"><strong id="upload-file-name"></strong><span id="upload-file-meta"></span></div>
+                  <button class="upload-file__remove" id="upload-file-remove" type="button" aria-label="Remove uploaded file">×</button>
+                </div>
+                <div class="upload-actions hidden" id="upload-actions">
+                  <span>What would you like to do?</span>
+                  <button type="button" data-upload-feature="explain">Explain</button>
+                  <button type="button" data-upload-feature="summarize">Summarise</button>
+                  <button type="button" data-upload-feature="quiz">Quiz me</button>
+                  <button type="button" data-upload-feature="exam">Prepare for exam</button>
+                </div>
+                <p class="upload-error hidden" id="upload-error" role="alert"></p>
+              </div>
+              <label class="sr-only" for="message-input">Your study question</label>
+              <textarea id="message-input" rows="2" maxlength="6000" placeholder="Ask a question or paste your notes..." required></textarea>
+              <div class="composer-footer"><span class="input-hint">Enter to send · Shift + Enter for a new line</span><button class="send-button" type="submit" id="send-button"><span>Send</span><span>↑</span></button></div>
+            </form>
           </div>
         </section>
       </main>

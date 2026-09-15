@@ -2,7 +2,7 @@ import { buildStudyCoachFeedback, calculateQuizScore, getFriendlyApiErrorMessage
 import { applyTheme, getStoredTheme, persistTheme, resolveThemePreference } from './theme.js';
 import { generateConversationTitle, loadStoredConversations, normalizeConversation, saveConversations } from './chat-history.js';
 
-const state = { feature: 'chat', busy: false, quizState: null, history: [], conversations: [], activeConversationId: null };
+const state = { feature: 'chat', busy: false, quizState: null, history: [], conversations: [], activeConversationId: null, uploadMaterial: null };
 const featureNames = { chat: 'Study chat', explain: 'Explain a topic', summarize: 'Summarise notes', planner: 'Study planner', exam: 'Exam preparation', quiz: 'Quiz me', assignment: 'Assignment helper', coding: 'Coding Helper', career: 'Career Guidance' };
 const form = document.querySelector('#chat-form');
 const input = document.querySelector('#message-input');
@@ -18,6 +18,15 @@ const clearHistoryButton = document.querySelector('#clear-history');
 const sidebarToggle = document.querySelector('#sidebar-toggle');
 const sidebarClose = document.querySelector('#sidebar-close');
 const layout = document.querySelector('.layout');
+const materialFile = document.querySelector('#material-file');
+const uploadDropzone = document.querySelector('#upload-dropzone');
+const uploadStatus = document.querySelector('#upload-status');
+const uploadFile = document.querySelector('#upload-file');
+const uploadFileName = document.querySelector('#upload-file-name');
+const uploadFileMeta = document.querySelector('#upload-file-meta');
+const uploadFileRemove = document.querySelector('#upload-file-remove');
+const uploadActions = document.querySelector('#upload-actions');
+const uploadError = document.querySelector('#upload-error');
 
 const welcomeMessages = {
   chat: 'Hi! I’m StudyBuddy. Ask me to explain a tricky topic, organise your notes, plan revision, or quiz you.',
@@ -62,6 +71,93 @@ function setBusy(value) {
   statusText.textContent = value ? 'Thinking...' : 'Ready to learn';
   document.querySelector('.status-dot').classList.toggle('working', value);
 }
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function setUploadError(message = '') {
+  if (!uploadError) return;
+  uploadError.textContent = message;
+  uploadError.classList.toggle('hidden', !message);
+}
+
+function clearUpload() {
+  state.uploadMaterial = null;
+  if (materialFile) materialFile.value = '';
+  uploadFile?.classList.add('hidden');
+  uploadActions?.classList.add('hidden');
+  uploadDropzone?.classList.remove('hidden');
+  setUploadError();
+  if (uploadStatus) uploadStatus.textContent = 'Optional';
+}
+
+async function uploadMaterial(file) {
+  if (!file) return;
+
+  setUploadError();
+  uploadDropzone?.classList.add('is-uploading');
+  if (uploadStatus) uploadStatus.textContent = 'Uploading...';
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await fetch('/api/upload', { method: 'POST', body: formData });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'This file could not be processed.');
+
+    state.uploadMaterial = { ...result.file, text: result.text };
+    uploadFileName.textContent = result.file.name;
+    uploadFileMeta.textContent = `${result.file.extension.toUpperCase().slice(1)} · ${formatFileSize(result.file.size)} · Text extracted`;
+    uploadFile.classList.remove('hidden');
+    uploadActions.classList.remove('hidden');
+    uploadDropzone.classList.add('hidden');
+    if (uploadStatus) uploadStatus.textContent = 'Ready';
+  } catch (error) {
+    clearUpload();
+    setUploadError(error.message || 'I couldn\'t read this file. Please try another file.');
+    if (uploadStatus) uploadStatus.textContent = 'Could not process';
+  } finally {
+    uploadDropzone?.classList.remove('is-uploading');
+  }
+}
+
+if (materialFile) {
+  materialFile.addEventListener('change', () => uploadMaterial(materialFile.files[0]));
+}
+
+if (uploadDropzone) {
+  ['dragenter', 'dragover'].forEach((eventName) => uploadDropzone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    uploadDropzone.classList.add('is-dragging');
+  }));
+  ['dragleave', 'drop'].forEach((eventName) => uploadDropzone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    uploadDropzone.classList.remove('is-dragging');
+  }));
+  uploadDropzone.addEventListener('drop', (event) => uploadMaterial(event.dataTransfer.files[0]));
+}
+
+uploadFileRemove?.addEventListener('click', clearUpload);
+
+uploadActions?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-upload-feature]');
+  if (!button) return;
+
+  const feature = button.dataset.uploadFeature;
+  selectFeature(feature);
+  if (['quiz', 'exam'].includes(feature)) {
+    openFeatureModal(feature);
+    return;
+  }
+
+  input.value = feature === 'summarize'
+    ? 'Summarise the uploaded material into key topics, important concepts, definitions, main points, and a quick revision summary.'
+    : 'Explain the uploaded material in simple terms and help me understand the key ideas.';
+  input.focus();
+});
 
 function selectFeature(feature) {
   state.feature = feature;
@@ -182,6 +278,7 @@ function createNewConversation() {
   state.activeConversationId = id;
   state.history = [];
   state.quizState = null;
+  clearUpload();
   state.conversations = state.conversations.filter((conversation) => conversation.id !== id);
   state.conversations.unshift({
     id,
@@ -205,6 +302,7 @@ function openConversation(conversationId) {
   state.history = conversation.messages.map((entry) => ({ ...entry, timestamp: entry.timestamp || Date.now() }));
   state.feature = conversation.feature || 'chat';
   state.quizState = null;
+  clearUpload();
   selectFeature(state.feature);
   renderMessagesFromHistory();
   renderHistoryList();
@@ -302,7 +400,13 @@ async function sendMessage(message, feature = state.feature) {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: message.trim(), feature, context })
+      body: JSON.stringify({
+        message: message.trim(),
+        feature,
+        context,
+        materialText: state.uploadMaterial?.text || '',
+        materialName: state.uploadMaterial?.name || ''
+      })
     });
 
     const result = await response.json();
@@ -437,8 +541,9 @@ function finishQuiz() {
 }
 
 function startQuiz(topic, difficulty = 'medium', focus = '', questionCount = 5) {
-  const questions = createFallbackQuiz(topic, difficulty, focus, questionCount);
-  state.quizState = { topic, difficulty, focus, questionCount, questions, currentIndex: 0, answers: {} };
+  const materialText = state.uploadMaterial?.text || '';
+  const questions = createFallbackQuiz(topic, difficulty, focus, questionCount, materialText);
+  state.quizState = { topic, difficulty, focus, questionCount, materialText, questions, currentIndex: 0, answers: {} };
   const intro = document.createElement('div');
   intro.className = 'message assistant';
   intro.innerHTML = `<div class="avatar">✦</div><div class="bubble"><p>Let’s practise ${escapeHtml(topic)} at a ${escapeHtml(difficulty)} level. I’ll ask one question at a time and then give you a friendly Study Coach review.</p></div></div>`;
