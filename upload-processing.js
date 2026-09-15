@@ -93,3 +93,7 @@ export function getUploadMetadata(file, extension, text) {
     truncated: text.length >= MAX_EXTRACTED_TEXT
   };
 }
+
+export function isMediaExtension(extension) {
+  return ['.jpg', '.jpeg', '.png'].includes(extension);
+}
