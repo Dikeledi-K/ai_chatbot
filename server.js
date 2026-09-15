@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SYSTEM_PROMPT, FEATURE_INSTRUCTIONS } from './prompts.js';
 import { validateInput, validateFeaturePayload } from './validation.js';
+import { buildQuizPrompt, parseQuizResponse } from './public/studybuddy-logic.js';
 import { MAX_UPLOAD_SIZE, extractUploadedText, getUploadMetadata, validateUploadedFile } from './upload-processing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -105,7 +106,7 @@ app.post('/api/chat', async (request, response) => {
   const materialContext = materialText ? `\n\nUploaded study material${materialName ? ` (${materialName})` : ''}:\n${String(materialText).slice(0, 50000)}\n\nUse the uploaded material as the primary source when the student refers to it. If the answer is not present there, say so clearly instead of inventing details.` : '';
   const prompt = `${FEATURE_INSTRUCTIONS[feature]}\n\nStudent request:\n${messageCheck.value}${materialContext}${context ? `\n\nRelevant conversation context:\n${context}` : ''}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  const timeout = setTimeout(() => controller.abort(), 90000);
 
   try {
     const answer = process.env.GEMINI_API_KEY
@@ -123,6 +124,40 @@ app.post('/api/chat', async (request, response) => {
           : 'StudyBuddy could not reach the AI service. Check your connection and try again.';
     console.error('AI request:', error.message);
     response.status(502).json({ error: message });
+  } finally {
+    clearTimeout(timeout);
+  }
+});
+
+app.post('/api/quiz', async (request, response) => {
+  const { topic = '', difficulty = 'medium', questionCount = 5, materialText = '', materialName = '' } = request.body ?? {};
+  const check = validateFeaturePayload('quiz', { topic, difficulty, questionCount, materialText });
+  if (!check.valid) return response.status(400).json({ error: check.message });
+
+  if (!process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY) {
+    return response.status(503).json({ error: 'The AI service is not configured.' });
+  }
+
+  const source = materialText
+    ? `\n\nStudy source${materialName ? ` (${materialName})` : ''}:\n${String(materialText).slice(0, 50000)}\n\nBase every question and answer on this source. Do not invent details that are not supported by it.`
+    : '';
+  const prompt = `${buildQuizPrompt(topic || 'the uploaded study document', difficulty, '')}\nRequested questions: ${Number(questionCount)}.${source}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const rawAnswer = process.env.GEMINI_API_KEY
+      ? await requestGemini(prompt, controller.signal)
+      : await requestOpenAI(prompt, controller.signal);
+    const questions = parseQuizResponse(rawAnswer)
+      .filter((question) => question && typeof question.question === 'string' && Array.isArray(question.options) && question.options.length === 4 && Number.isInteger(Number(question.correctAnswerIndex)))
+      .slice(0, Number(questionCount))
+      .map((question, index) => ({ ...question, id: question.id || `ai-${index + 1}`, correctAnswerIndex: Number(question.correctAnswerIndex), difficulty }));
+    if (questions.length < Number(questionCount)) throw new Error('The AI returned an incomplete quiz.');
+    response.json({ questions });
+  } catch (error) {
+    console.error('Quiz generation:', error.message);
+    response.status(502).json({ error: 'The AI could not generate a reliable quiz right now.' });
   } finally {
     clearTimeout(timeout);
   }
