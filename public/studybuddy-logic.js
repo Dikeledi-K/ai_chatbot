@@ -106,66 +106,68 @@ export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', 
 
   const baseConcepts = focusList.length ? focusList : sourceConcepts.length ? sourceConcepts : ['Core concepts', 'Applications', 'Problem solving', 'Key terminology', 'Examples'];
   const conceptPool = [...baseConcepts];
-  const questionTemplates = [
-    {
-      prompt: `Which option best explains ${topicLabel} in a ${difficulty} challenge?`,
-      generator: (concept) => ({
-        correct: `The best answer for ${topicLabel} is to understand the idea and apply it in a clear, accurate way.`,
-        wrongs: [
-          `The best answer is to guess without checking the concept.`,
-          `The best answer is to memorise a rule without understanding why it works.`,
-          `The best answer is to copy an answer without checking the logic.`
-        ]
-      })
-    },
-    {
-      prompt: `Which statement best matches ${topicLabel} when you are revising ${difficulty} work?`,
-      generator: (concept) => ({
-        correct: `A strong understanding of ${concept.toLowerCase()} helps you explain ${topicLabel} correctly and apply it in practice.`,
-        wrongs: [
-          `A good strategy is to skip examples and rely on luck.`,
-          `A good strategy is to memorise the answer without understanding the reason.`,
-          `A good strategy is to ignore the topic and hope it does not matter.`
-        ]
-      })
-    },
-    {
-      prompt: `Which answer shows the best way to approach ${topicLabel}?`,
-      generator: (concept) => ({
-        correct: `The best approach is to build understanding, check your reasoning, and apply the idea to a real example.`,
-        wrongs: [
-          `The best approach is to guess and move on.`,
-          `The best approach is to avoid practice and rely only on memory.`,
-          `The best approach is to copy someone else's answer without understanding it.`
-        ]
-      })
-    },
-    {
-      prompt: `What is the strongest response when working on ${topicLabel}?`,
-      generator: (concept) => ({
-        correct: `The strongest response is to understand the ${concept.toLowerCase()} and apply it carefully.`,
-        wrongs: [
-          `The strongest response is to guess randomly.`,
-          `The strongest response is to skip checking the logic.`,
-          `The strongest response is to copy the answer without effort.`
-        ]
-      })
+  const hash = (value) => [...String(value)].reduce((total, character) => (total * 31 + character.charCodeAt(0)) >>> 0, 7);
+  const shuffle = (items, seed) => {
+    const result = [...items];
+    let value = seed || 1;
+    for (let index = result.length - 1; index > 0; index -= 1) {
+      value = (value * 1664525 + 1013904223) >>> 0;
+      const swapIndex = value % (index + 1);
+      [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
     }
+    return result;
+  };
+  const questionTemplates = [
+    (concept) => ({
+      question: `A classmate says that ${concept.toLowerCase()} is just a matter of memorising definitions. Which reply best demonstrates a deeper understanding of ${topicLabel}?`,
+      correct: `Definitions are a starting point; you should also explain ${concept.toLowerCase()} and apply it to a new example.`,
+      wrongs: [
+        `That is correct because definitions always give the answer without further reasoning.`,
+        `The best response is to memorise more terms and avoid unfamiliar examples.`,
+        `The idea cannot be understood unless every detail is memorised word for word.`
+      ]
+    }),
+    (concept) => ({
+      question: `You are given a new ${topicLabel} problem involving ${concept.toLowerCase()}. What should you do first?`,
+      correct: `Identify the relevant principle, note what the problem gives you, and choose a method that fits the situation.`,
+      wrongs: [
+        `Use the longest formula available, even if its assumptions do not match.`,
+        `Start calculating immediately and decide what the question means afterward.`,
+        `Look for a familiar-looking answer and adjust the working to reach it.`
+      ]
+    }),
+    (concept) => ({
+      question: `Which piece of evidence would most strongly show that you understand ${concept.toLowerCase()} in ${topicLabel}?`,
+      correct: `You can explain why the idea works, use it in an unfamiliar example, and check whether the result makes sense.`,
+      wrongs: [
+        `You can recognise the term when it appears in a list of vocabulary.`,
+        `You can repeat one worked example without changing any of its details.`,
+        `You remember the final answer but cannot explain how it was reached.`
+      ]
+    }),
+    (concept) => ({
+      question: `A first attempt involving ${concept.toLowerCase()} gives an unexpected result. What is the most useful next step?`,
+      correct: `Check the assumptions, the working, and the units or evidence before revising the method.`,
+      wrongs: [
+        `Change the answer until it looks similar to an example from memory.`,
+        `Assume the result must be right because the method was used quickly.`,
+        `Discard the whole topic because one attempt produced an error.`
+      ]
+    })
   ];
 
   return Array.from({ length: count }, (_, index) => {
     const concept = conceptPool[index % conceptPool.length];
-    const template = questionTemplates[index % questionTemplates.length];
-    const content = template.generator(concept);
-    const options = [content.correct, ...content.wrongs];
+    const template = questionTemplates[index % questionTemplates.length](concept);
+    const options = shuffle([template.correct, ...template.wrongs], hash(`${topicLabel}:${concept}:${index}`));
 
     return {
       id: `fallback-${index + 1}`,
       concept,
-      question: template.prompt,
+      question: template.question,
       options,
-      correctAnswerIndex: 0,
-      explanation: `A strong answer for ${topicLabel} is to understand the concept, test your thinking, and practise with examples.`,
+      correctAnswerIndex: options.indexOf(template.correct),
+      explanation: `The strongest answer connects ${concept.toLowerCase()} to reasoning, evidence, and a new example rather than relying on recall alone.`,
       difficulty
     };
   });
