@@ -16,12 +16,12 @@ test('rejects unsupported extensions and oversized files', () => {
 
 test('rejects malformed PDF data safely', async () => {
   const file = { originalname: 'broken.pdf', mimetype: 'application/pdf', size: 3, buffer: Buffer.from('bad') };
-  await assert.rejects(() => extractUploadedText(file, '.pdf'));
-});
-
-test('recognizes images but reports the current text-only limitation', async () => {
-  const file = { originalname: 'diagram.png', mimetype: 'image/png', size: 12, buffer: Buffer.from('image bytes') };
   const check = validateUploadedFile(file);
   assert.equal(check.valid, true);
-  await assert.rejects(() => extractUploadedText(file, check.extension), /cannot extract text from images/);
+  await assert.rejects(() => extractUploadedText(file, check.extension));
+});
+
+test('rejects image uploads', () => {
+  const file = { originalname: 'diagram.png', mimetype: 'image/png', size: 12, buffer: Buffer.from('image bytes') };
+  assert.equal(validateUploadedFile(file).valid, false);
 });

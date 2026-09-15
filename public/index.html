@@ -69,8 +69,6 @@
             <button class="feature-card" data-feature="assignment"><span class="feature-icon">↗</span><span><strong>Assignment helper</strong><small>Plan your own work</small></span><span class="arrow">→</span></button>
             <button class="feature-card" data-feature="coding"><span class="feature-icon">⌨</span><span><strong>Coding Helper</strong><small>Debug and learn</small></span><span class="arrow">→</span></button>
             <button class="feature-card" data-feature="career"><span class="feature-icon">◎</span><span><strong>Career Guidance</strong><small>Explore your next step</small></span><span class="arrow">→</span></button>
-            <button class="feature-card" data-feature="pdf"><span class="feature-icon">▤</span><span><strong>PDF study</strong><small>Ask your document</small></span><span class="arrow">→</span></button>
-            <button class="feature-card" data-feature="media"><span class="feature-icon">▧</span><span><strong>Media study</strong><small>Learn from an image</small></span><span class="arrow">→</span></button>
           </div>
 
           <div class="chat-panel">
@@ -84,9 +82,9 @@
                 <label class="upload-dropzone" id="upload-dropzone" for="material-file">
                   <span class="upload-dropzone__icon" aria-hidden="true">↥</span>
                   <span><strong>Choose a file</strong> or drag and drop it here</span>
-                  <small>PDF, DOCX, TXT, JPG, JPEG, PNG · max 10 MB</small>
+                  <small>DOCX, TXT · max 10 MB</small>
                 </label>
-                <input class="sr-only" id="material-file" type="file" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/jpeg,image/png" />
+                <input class="sr-only" id="material-file" type="file" accept=".docx,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" />
                 <div class="upload-file hidden" id="upload-file" aria-live="polite">
                   <span class="upload-file__icon" aria-hidden="true">📄</span>
                   <div class="upload-file__details"><strong id="upload-file-name"></strong><span id="upload-file-meta"></span></div>
@@ -98,8 +96,6 @@
                   <button type="button" data-upload-feature="summarize">Summarise</button>
                   <button type="button" data-upload-feature="quiz">Quiz me</button>
                   <button type="button" data-upload-feature="exam">Prepare for exam</button>
-                  <button type="button" data-upload-feature="pdf">Study PDF</button>
-                  <button type="button" data-upload-feature="media">Study image</button>
                 </div>
                 <p class="upload-error hidden" id="upload-error" role="alert"></p>
               </div>

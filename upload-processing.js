@@ -8,10 +8,7 @@ export const MAX_EXTRACTED_TEXT = 50000;
 const supportedTypes = new Map([
   ['.pdf', 'application/pdf'],
   ['.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-  ['.txt', 'text/plain'],
-  ['.jpg', 'image/jpeg'],
-  ['.jpeg', 'image/jpeg'],
-  ['.png', 'image/png']
+  ['.txt', 'text/plain']
 ]);
 
 export function getFileExtension(filename = '') {
@@ -34,18 +31,18 @@ export function validateUploadedFile(file) {
   const extension = getFileExtension(file.originalname);
   const expectedType = supportedTypes.get(extension);
   if (!expectedType || (file.mimetype && file.mimetype !== expectedType && !(extension === '.txt' && file.mimetype === 'application/octet-stream'))) {
-    return { valid: false, message: 'That file type is not supported. Choose a PDF, DOCX, TXT, JPG, JPEG, or PNG file.' };
+    return { valid: false, message: 'That file type is not supported. Choose a PDF, DOCX, or TXT file.' };
   }
 
   return { valid: true, extension, mimeType: expectedType };
 }
 
-function hasPdfSignature(buffer) {
-  return buffer.subarray(0, 5).toString() === '%PDF-';
-}
-
 function hasZipSignature(buffer) {
   return buffer.subarray(0, 2).toString('hex') === '504b';
+}
+
+function hasPdfSignature(buffer) {
+  return buffer.subarray(0, 5).toString() === '%PDF-';
 }
 
 function limitText(text) {
@@ -55,6 +52,15 @@ function limitText(text) {
 export async function extractUploadedText(file, extension) {
   if (extension === '.txt') {
     return limitText(file.buffer.toString('utf8'));
+  }
+
+  if (extension === '.docx') {
+    if (!hasZipSignature(file.buffer)) {
+      throw new Error('This DOCX file does not appear to be valid.');
+    }
+
+    const result = await mammoth.extractRawText({ buffer: file.buffer });
+    return limitText(result.value);
   }
 
   if (extension === '.pdf') {
@@ -71,16 +77,7 @@ export async function extractUploadedText(file, extension) {
     }
   }
 
-  if (extension === '.docx') {
-    if (!hasZipSignature(file.buffer)) {
-      throw new Error('This DOCX file does not appear to be valid.');
-    }
-
-    const result = await mammoth.extractRawText({ buffer: file.buffer });
-    return limitText(result.value);
-  }
-
-  throw new Error('Images are accepted, but this AI configuration cannot extract text from images yet. Please upload a text-based file instead.');
+  throw new Error('That file type is not supported. Please upload a PDF, DOCX, or TXT file.');
 }
 
 export function getUploadMetadata(file, extension, text) {
@@ -94,6 +91,3 @@ export function getUploadMetadata(file, extension, text) {
   };
 }
 
-export function isMediaExtension(extension) {
-  return ['.jpg', '.jpeg', '.png'].includes(extension);
-}

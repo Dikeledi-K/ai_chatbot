@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SYSTEM_PROMPT, FEATURE_INSTRUCTIONS } from './prompts.js';
 import { validateInput, validateFeaturePayload } from './validation.js';
-import { MAX_UPLOAD_SIZE, extractUploadedText, getUploadMetadata, isMediaExtension, validateUploadedFile } from './upload-processing.js';
+import { MAX_UPLOAD_SIZE, extractUploadedText, getUploadMetadata, validateUploadedFile } from './upload-processing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -38,15 +38,14 @@ app.post('/api/upload', uploadMiddleware, async (request, response) => {
   if (!fileCheck.valid) return response.status(400).json({ error: fileCheck.message });
 
   try {
-    const text = isMediaExtension(fileCheck.extension) ? '' : await extractUploadedText(request.file, fileCheck.extension);
-    if (!text && !isMediaExtension(fileCheck.extension)) {
+    const text = await extractUploadedText(request.file, fileCheck.extension);
+    if (!text) {
       return response.status(422).json({ error: 'I could not find readable text in that file. Please try a different document.' });
     }
 
     response.json({
-      file: { ...getUploadMetadata(request.file, fileCheck.extension, text), isMedia: isMediaExtension(fileCheck.extension) },
-      text,
-      media: isMediaExtension(fileCheck.extension) ? { mimeType: fileCheck.mimeType, data: request.file.buffer.toString('base64') } : null
+      file: getUploadMetadata(request.file, fileCheck.extension, text),
+      text
     });
   } catch (error) {
     console.error('Upload processing:', error.message);
@@ -54,7 +53,7 @@ app.post('/api/upload', uploadMiddleware, async (request, response) => {
   }
 });
 
-async function requestGemini(prompt, signal, media) {
+async function requestGemini(prompt, signal) {
   const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
@@ -62,7 +61,7 @@ async function requestGemini(prompt, signal, media) {
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: 'user', parts: [{ text: prompt }, ...(media ? [{ inline_data: { mime_type: media.mimeType, data: media.data } }] : [])] }],
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { temperature: 0.2 }
     })
   });
@@ -75,13 +74,13 @@ async function requestGemini(prompt, signal, media) {
   return result.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('').trim();
 }
 
-async function requestOpenAI(prompt, signal, media) {
+async function requestOpenAI(prompt, signal) {
   const baseUrl = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
   const aiResponse = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     signal,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.2, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: media ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:${media.mimeType};base64,${media.data}` } }] : prompt }] })
+    body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.2, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }] })
   });
   const result = await aiResponse.json();
   if (!aiResponse.ok) {
@@ -94,7 +93,7 @@ async function requestOpenAI(prompt, signal, media) {
 }
 
 app.post('/api/chat', async (request, response) => {
-  const { message, feature = 'chat', context = '', materialText = '', materialName = '', materialMedia = null } = request.body ?? {};
+  const { message, feature = 'chat', context = '', materialText = '', materialName = '' } = request.body ?? {};
   const messageCheck = validateInput(message);
   if (!messageCheck.valid) return response.status(400).json({ error: messageCheck.message });
   if (!Object.hasOwn(FEATURE_INSTRUCTIONS, feature)) return response.status(400).json({ error: 'That study mode is not available.' });
@@ -103,15 +102,15 @@ app.post('/api/chat', async (request, response) => {
     return response.status(503).json({ error: 'The AI service is not configured yet. Add OPENAI_API_KEY to your .env file, then restart StudyBuddy.' });
   }
 
-  const materialContext = materialText ? `\n\nUploaded study material${materialName ? ` (${materialName})` : ''}:\n${String(materialText).slice(0, 50000)}\n\nUse the uploaded material as the primary source when the student refers to it. If the answer is not present there, say so clearly instead of inventing details.` : materialMedia ? `\n\nThe uploaded image${materialName ? ` (${materialName})` : ''} is attached to this request. Use it as the primary study material.` : '';
+  const materialContext = materialText ? `\n\nUploaded study material${materialName ? ` (${materialName})` : ''}:\n${String(materialText).slice(0, 50000)}\n\nUse the uploaded material as the primary source when the student refers to it. If the answer is not present there, say so clearly instead of inventing details.` : '';
   const prompt = `${FEATURE_INSTRUCTIONS[feature]}\n\nStudent request:\n${messageCheck.value}${materialContext}${context ? `\n\nRelevant conversation context:\n${context}` : ''}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
 
   try {
     const answer = process.env.GEMINI_API_KEY
-      ? await requestGemini(prompt, controller.signal, materialMedia)
-      : await requestOpenAI(prompt, controller.signal, materialMedia);
+      ? await requestGemini(prompt, controller.signal)
+      : await requestOpenAI(prompt, controller.signal);
     if (!answer) throw new Error('The AI returned an empty response');
     response.json({ answer });
   } catch (error) {
