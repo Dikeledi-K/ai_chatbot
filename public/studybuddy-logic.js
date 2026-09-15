@@ -240,6 +240,41 @@ export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', 
       explanation: 'A dictionary maps keys to values, so the key is used for lookup.'
     }
   ];
+  const difficultPythonDataStructureQuestions = [
+    {
+      concept: 'Reference graphs',
+      question: 'A = [[1], [2]]; B = A[:]; B[0] += [3]. What is A after this code runs, and why?',
+      correct: 'A is [[1, 3], [2]] because the outer slice is shallow and A[0] is shared.',
+      wrongs: [
+        'A is [[1], [2]] because slicing always deep-copies nested lists.',
+        'A is [[3], [2]] because the original value is replaced before the append.',
+        'A is [[1, 2, 3]] because slicing flattens nested lists.'
+      ],
+      explanation: 'The outer list is copied, but its nested list objects remain shared references.'
+    },
+    {
+      concept: 'Algorithmic trade-offs',
+      question: 'A program performs 100,000 membership checks and the collection changes rarely. Which design best balances speed and update cost?',
+      correct: 'Build a set once, then rebuild it only when the underlying collection changes.',
+      wrongs: [
+        'Scan the list from the beginning for every membership check.',
+        'Use a tuple and assume it provides constant-time membership checks.',
+        'Create a new dictionary with one shared key for every lookup.'
+      ],
+      explanation: 'A set provides fast average membership checks while avoiding repeated conversion work.'
+    },
+    {
+      concept: 'Nested data transformation',
+      question: 'Given records = [{"scores": [4, 5]}, {"scores": [7]}], which expression returns [4, 5, 7] without changing records?',
+      correct: '[score for record in records for score in record["scores"]]',
+      wrongs: [
+        '[record["scores"] for score in records for record in score]',
+        '[score for score in records["scores"] for record in records]',
+        '[records[score] for score in range(len(records))]'
+      ],
+      explanation: 'The outer loop visits each record and the inner loop visits its scores.'
+    }
+  ];
   const healthQuestions = [
     {
       concept: 'Evidence and health claims',
@@ -370,12 +405,54 @@ export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', 
       ]
     })
   ];
+  const easyQuestionTemplates = [
+    (concept) => ({
+      question: `Which statement best describes ${concept.toLowerCase()} in ${topicLabel}?`,
+      correct: `${concept} is an important idea that can be explained clearly and supported with a simple example.`,
+      wrongs: [
+        `${concept} is only a word to memorise without understanding.`,
+        `${concept} means every answer is correct regardless of evidence.`,
+        `${concept} should be ignored until after the assessment.`
+      ]
+    }),
+    (concept) => ({
+      question: `What is a sensible first step when learning ${concept.toLowerCase()}?`,
+      correct: `Define the idea in your own words, then practise it with a familiar example.`,
+      wrongs: [
+        `Skip examples and try to memorise a final answer immediately.`,
+        `Choose an answer at random before reading the question carefully.`,
+        `Copy a solution without checking what each step means.`
+      ]
+    })
+  ];
+  const difficultQuestionTemplates = [
+    (concept) => ({
+      question: `A new scenario in ${topicLabel} produces an unexpected result involving ${concept.toLowerCase()}. Which analysis is strongest?`,
+      correct: `Separate the assumptions, evidence, and possible alternative explanations before deciding which conclusion is justified.`,
+      wrongs: [
+        `Treat the first plausible explanation as correct without testing its assumptions.`,
+        `Ignore the result because unexpected evidence cannot improve a model.`,
+        `Choose the most confident explanation even when the evidence is incomplete.`
+      ]
+    }),
+    (concept) => ({
+      question: `Which response best demonstrates transfer of ${concept.toLowerCase()} to an unfamiliar ${topicLabel} problem?`,
+      correct: `Apply the underlying principle, explain each decision, and evaluate whether the evidence supports the result.`,
+      wrongs: [
+        `Repeat a memorised example even though the new problem has different conditions.`,
+        `Use a formula without checking whether its assumptions fit the situation.`,
+        `Give a result without connecting it to the principle or evidence.`
+      ]
+    })
+  ];
 
   return Array.from({ length: count }, (_, index) => {
     if (isPythonDataStructures) {
-      const questionPool = difficulty === 'hard'
-        ? hardPythonDataStructureQuestions
-        : difficulty === 'easy' ? easyPythonDataStructureQuestions : pythonDataStructureQuestions;
+      const questionPool = difficulty === 'difficult'
+        ? difficultPythonDataStructureQuestions
+        : difficulty === 'hard'
+          ? hardPythonDataStructureQuestions
+          : difficulty === 'easy' ? easyPythonDataStructureQuestions : pythonDataStructureQuestions;
       const content = questionPool[index % questionPool.length];
       const options = shuffle([content.correct, ...content.wrongs], hash(`${topicLabel}:${content.concept}:${index}`));
       return {
@@ -391,7 +468,8 @@ export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', 
 
     if (isHealthTopic || isAgricultureTopic) {
       const subjectQuestions = isHealthTopic ? healthQuestions : agricultureQuestions;
-      const content = subjectQuestions[index % subjectQuestions.length];
+      const difficultyOffset = difficulty === 'difficult' ? 2 : difficulty === 'hard' ? 1 : 0;
+      const content = subjectQuestions[(index + difficultyOffset) % subjectQuestions.length];
       const options = shuffle([content.correct, ...content.wrongs], hash(`${topicLabel}:${content.concept}:${index}`));
       return {
         id: `fallback-${index + 1}`,
@@ -405,7 +483,8 @@ export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', 
     }
 
     const concept = conceptPool[index % conceptPool.length];
-    const template = questionTemplates[index % questionTemplates.length](concept);
+    const templates = difficulty === 'difficult' ? difficultQuestionTemplates : difficulty === 'easy' ? easyQuestionTemplates : questionTemplates;
+    const template = templates[index % templates.length](concept);
     const options = shuffle([template.correct, ...template.wrongs], hash(`${topicLabel}:${concept}:${index}`));
 
     return {
@@ -439,7 +518,7 @@ export function buildCareerPrompt(career) {
   return `Provide general career guidance for: ${cleanCareer}.\n\nUse this structure:\n1. Career Overview\n- What the career involves\n- Typical responsibilities\n2. Skills Needed\n- Technical skills\n- Soft skills\n3. Recommended Subjects\n- Useful school subjects\n4. Beginner Projects\n- Simple projects to build experience\n5. Learning Path\n- Beginner\n- Intermediate\n- Advanced\n6. Related Careers\n- Similar careers\n\nImportant requirements:\n- Keep the guidance general and non-guaranteed.\n- Do not claim guaranteed employment or salaries.\n- If the user asks for job market or current requirements, clearly say that requirements can vary by company and location.\n- Keep the answer supportive, realistic and aimed at learning.`;
 }
 
-export function buildQuizPrompt(topic, difficulty = 'medium', focus = '') {
+export function buildQuizPrompt(topic, difficulty = 'easy', focus = '') {
   const safeTopic = String(topic || '').trim();
   if (!safeTopic) {
     throw new Error('Please choose a topic for the quiz.');
