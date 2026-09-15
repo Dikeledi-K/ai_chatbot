@@ -80,6 +80,18 @@ select {
   transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
 }
 
+button {
+  font-weight: 600;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .app-shell {
   max-width: 1440px;
   margin: auto;
@@ -305,12 +317,17 @@ select {
 
 .history-action {
   flex: 1;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-strong);
   background: var(--bg-panel-strong);
   color: var(--text-primary);
   border-radius: 10px;
   padding: 9px 10px;
   cursor: pointer;
+}
+
+.history-action:hover {
+  border-color: var(--text-brand);
+  background: var(--bg-card-soft);
 }
 
 .history-action--primary {
@@ -549,8 +566,8 @@ h2 {
 
 .answer-option,
 .secondary-action {
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: var(--bg-card-soft);
+  border: 1px solid var(--text-accent);
+  background: var(--bg-panel-strong);
   color: var(--text-primary);
   border-radius: 8px;
   padding: 9px 10px;
@@ -563,7 +580,8 @@ h2 {
 .answer-option:hover,
 .secondary-action:hover {
   border-color: var(--text-brand);
-  background: rgba(249, 115, 22, 0.08);
+  background: rgba(249, 115, 22, 0.14);
+  color: var(--text-primary);
 }
 
 .quiz-summary {
@@ -749,9 +767,9 @@ h2 {
 .suggestions button {
   font: inherit;
   font-size: 11px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: rgba(56, 189, 248, 0.1);
-  color: var(--text-accent);
+  border: 1px solid var(--text-accent);
+  background: var(--bg-panel-strong);
+  color: var(--text-primary);
   padding: 7px 9px;
   border-radius: 4px;
   cursor: pointer;
@@ -759,8 +777,10 @@ h2 {
 }
 
 .suggestions button:hover {
-  background: rgba(56, 189, 248, 0.2);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+  background: var(--bg-card-soft);
+  border-color: var(--text-brand);
+  color: var(--text-brand);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.16);
 }
 
 .typing {
@@ -798,23 +818,23 @@ h2 {
   align-items: center;
   gap: 10px;
   margin: 12px 0;
-  color: var(--muted, #6b7280);
-  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .quiz-settings label {
   font-weight: 700;
-  color: var(--ink, #1f2937);
+  color: var(--text-primary);
 }
 
 .quiz-settings input,
 .quiz-settings select {
   width: 70px;
   padding: 8px 10px;
-  border: 1px solid var(--line, #d7dbe2);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
-  background: var(--surface, #fff);
-  color: inherit;
+  background: var(--bg-panel-strong);
+  color: var(--text-primary);
 }
 
 .quiz-settings select {
@@ -957,11 +977,11 @@ h2 {
 }
 
 .upload-actions button {
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--text-accent);
   border-radius: 7px;
   padding: 6px 8px;
   background: var(--bg-panel-strong);
-  color: var(--text-accent);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 11px;
 }
@@ -969,6 +989,7 @@ h2 {
 .upload-actions button:hover {
   border-color: var(--text-brand);
   color: var(--text-brand);
+  background: var(--bg-card-soft);
 }
 
 textarea,

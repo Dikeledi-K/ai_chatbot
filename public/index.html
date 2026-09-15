@@ -103,6 +103,12 @@
                 <label for="quiz-question-count">Number of questions</label>
                 <input id="quiz-question-count" type="number" min="1" max="20" value="5" aria-describedby="quiz-question-count-hint" />
                 <span id="quiz-question-count-hint">Choose 1 to 20</span>
+                <label for="quiz-difficulty">Difficulty</label>
+                <select id="quiz-difficulty" class="form-select">
+                  <option value="easy">Easy</option>
+                  <option value="hard">Hard</option>
+                  <option value="difficult">Difficult</option>
+                </select>
               </div>
               <label class="sr-only" for="message-input">Your study question</label>
               <textarea id="message-input" rows="2" maxlength="6000" placeholder="Ask a question or paste your notes..." required></textarea>
