@@ -99,6 +99,11 @@
                 </div>
                 <p class="upload-error hidden" id="upload-error" role="alert"></p>
               </div>
+              <div class="quiz-settings hidden" id="quiz-settings">
+                <label for="quiz-question-count">Number of questions</label>
+                <input id="quiz-question-count" type="number" min="1" max="20" value="5" aria-describedby="quiz-question-count-hint" />
+                <span id="quiz-question-count-hint">Choose 1 to 20</span>
+              </div>
               <label class="sr-only" for="message-input">Your study question</label>
               <textarea id="message-input" rows="2" maxlength="6000" placeholder="Ask a question or paste your notes..." required></textarea>
               <div class="composer-footer"><span class="input-hint">Enter to send · Shift + Enter for a new line</span><button class="send-button" type="submit" id="send-button"><span>Send</span><span>↑</span></button></div>
@@ -109,6 +114,6 @@
       <footer><span>Built for learning, with responsible AI at the centre.</span><a href="/tests/test-cases.md">Testing evidence</a></footer>
     </div>
     <div class="modal-backdrop hidden" id="feature-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="Close">×</button><div class="eyebrow" id="modal-kicker">STUDY PLANNER</div><h2 id="modal-title">Build a plan that fits your week.</h2><form id="feature-form"></form></div></div>
-    <script type="module" src="/main.js"></script>
+    <script type="module" src="/main.js?v=20260915-quiz-difficulty"></script>
   </body>
 </html>

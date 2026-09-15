@@ -27,6 +27,9 @@ const uploadFileMeta = document.querySelector('#upload-file-meta');
 const uploadFileRemove = document.querySelector('#upload-file-remove');
 const uploadActions = document.querySelector('#upload-actions');
 const uploadError = document.querySelector('#upload-error');
+const quizSettings = document.querySelector('#quiz-settings');
+const quizQuestionCount = document.querySelector('#quiz-question-count');
+const quizDifficulty = document.querySelector('#quiz-difficulty');
 
 const welcomeMessages = {
   chat: 'Hi! I’m StudyBuddy. Ask me to explain a tricky topic, organise your notes, plan revision, or quiz you.',
@@ -148,8 +151,14 @@ uploadActions?.addEventListener('click', (event) => {
 
   const feature = button.dataset.uploadFeature;
   selectFeature(feature);
-  if (['quiz', 'exam'].includes(feature)) {
+  if (feature === 'exam') {
     openFeatureModal(feature);
+    return;
+  }
+
+  if (feature === 'quiz') {
+    input.value = state.uploadMaterial ? 'Create a quiz from the uploaded material.' : '';
+    input.focus();
     return;
   }
 
@@ -161,10 +170,11 @@ uploadActions?.addEventListener('click', (event) => {
 
 function selectFeature(feature) {
   state.feature = feature;
+  quizSettings?.classList.toggle('hidden', feature !== 'quiz');
   document.querySelectorAll('.feature-card').forEach((card) => card.classList.toggle('active', card.dataset.feature === feature));
   document.querySelector('#mode-label').textContent = feature === 'chat' ? 'STUDY CHAT' : featureNames[feature].toUpperCase();
   document.querySelector('#mode-title').textContent = feature === 'chat' ? 'What are you working on?' : `${featureNames[feature]} with confidence.`;
-  input.placeholder = feature === 'summarize' ? 'Paste your notes here...' : feature === 'explain' ? 'What topic should we unpack?' : feature === 'planner' ? 'Subject, exam date, topics, and hours per week...' : feature === 'exam' ? 'Tell me what you need to revise before the exam...' : feature === 'coding' ? 'Paste your code and describe what you are trying to do...' : feature === 'career' ? 'Tell me a career you are interested in...' : 'Ask a question or paste your notes...';
+  input.placeholder = feature === 'summarize' ? 'Paste your notes here...' : feature === 'explain' ? 'What topic should we unpack?' : feature === 'planner' ? 'Subject, exam date, topics, and hours per week...' : feature === 'exam' ? 'Tell me what you need to revise before the exam...' : feature === 'quiz' ? 'Type a quiz topic or leave the uploaded material as your source...' : feature === 'coding' ? 'Paste your code and describe what you are trying to do...' : feature === 'career' ? 'Tell me a career you are interested in...' : 'Ask a question or paste your notes...';
   if (!state.history.length && messages) {
     renderMessagesFromHistory();
   }
@@ -540,14 +550,30 @@ function finishQuiz() {
   messages.scrollTop = messages.scrollHeight;
 }
 
-function startQuiz(topic, difficulty = 'medium', focus = '', questionCount = 5) {
+async function startQuiz(topic, difficulty = 'medium', focus = '', questionCount = 5) {
   const materialText = state.uploadMaterial?.text || '';
-  const questions = createFallbackQuiz(topic, difficulty, focus, questionCount, materialText);
-  state.quizState = { topic, difficulty, focus, questionCount, materialText, questions, currentIndex: 0, answers: {} };
   const intro = document.createElement('div');
   intro.className = 'message assistant';
-  intro.innerHTML = `<div class="avatar">✦</div><div class="bubble"><p>Let’s practise ${escapeHtml(topic)} at a ${escapeHtml(difficulty)} level. I’ll ask one question at a time and then give you a friendly Study Coach review.</p></div></div>`;
+  intro.innerHTML = `<div class="avatar">✦</div><div class="bubble"><p>I’m creating a ${escapeHtml(topic)} quiz at a ${escapeHtml(difficulty)} level${materialText ? ' from your uploaded document' : ''}...</p></div>`;
   messages.append(intro);
+  messages.scrollTop = messages.scrollHeight;
+
+  let questions;
+  try {
+    const response = await fetch('/api/quiz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic: topic === 'the uploaded document' ? '' : topic, difficulty, questionCount, materialText, materialName: state.uploadMaterial?.name || '' })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Quiz generation failed.');
+    questions = result.questions;
+  } catch {
+    questions = createFallbackQuiz(topic, difficulty, focus, questionCount, materialText);
+  }
+
+  intro.remove();
+  state.quizState = { topic, difficulty, focus, questionCount, materialText, questions, currentIndex: 0, answers: {} };
   renderQuizQuestion();
 }
 
@@ -555,6 +581,14 @@ form.addEventListener('submit', (event) => {
   event.preventDefault();
   const value = input.value.trim();
   input.value = '';
+  if (state.feature === 'quiz') {
+    if (!value && !state.uploadMaterial?.text) return;
+    const questionCount = Math.min(20, Math.max(1, Number(quizQuestionCount?.value) || 5));
+    const difficulty = ['easy', 'medium', 'hard'].includes(quizDifficulty?.value) ? quizDifficulty.value : 'medium';
+    if (quizQuestionCount) quizQuestionCount.value = String(questionCount);
+    startQuiz(value || 'the uploaded document', difficulty, '', questionCount);
+    return;
+  }
   sendMessage(value);
 });
 
@@ -568,7 +602,7 @@ input.addEventListener('keydown', (event) => {
 document.querySelectorAll('.feature-card').forEach((card) => card.addEventListener('click', () => {
   const feature = card.dataset.feature;
   selectFeature(feature);
-  if (feature !== 'chat' && ['planner', 'exam', 'quiz', 'assignment', 'coding', 'career'].includes(feature)) {
+  if (feature !== 'chat' && ['planner', 'exam', 'assignment', 'coding', 'career'].includes(feature)) {
     openFeatureModal(feature);
   } else {
     input.focus();
@@ -615,7 +649,7 @@ function openFeatureModal(feature) {
   const templates = {
     planner: `<label>Subject<input name="subject" placeholder="e.g. Biology" required></label><label>Exam date<input name="examDate" type="date" required></label><label>Number of topics<input name="topics" type="number" min="1" max="100" placeholder="e.g. 8" required></label><label>Study time per week<input name="hours" type="number" min="1" max="80" placeholder="e.g. 4" required></label><button class="primary-action" type="submit">Create my plan <span>→</span></button>`,
     exam: `<label>Subject<input name="subject" placeholder="e.g. History" required></label><label>Exam date<input name="examDate" type="date" required></label><label>Key topics<textarea name="topics" rows="3" placeholder="List the topics you need to revise" required></textarea></label><label>Focus area<input name="focus" placeholder="e.g. Essay structure or photosynthesis" required></label><button class="primary-action" type="submit">Prep for exam <span>→</span></button>`,
-    quiz: `<label>Quiz topic<input name="topic" placeholder="e.g. Fractions" required></label><label>Number of questions<input name="questionCount" type="number" min="1" max="20" placeholder="e.g. 5" required></label><label>Difficulty<select class="form-select" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label><label>Optional focus area<input name="focus" placeholder="e.g. Variables, loops, functions"></label><label>Optional PDF study material<input name="quizPdf" type="file" accept=".pdf,application/pdf"></label><p class="form-note">Choose your quiz settings, or add a PDF so the questions are based on its contents.</p><button class="primary-action" type="submit">Start quiz <span>→</span></button>`,
+    quiz: `<label>Quiz topic <span class="form-note">(optional when a PDF is uploaded)</span><input name="topic" placeholder="e.g. Fractions"></label><label>Number of questions<input name="questionCount" type="number" min="1" max="20" placeholder="e.g. 5" required></label><label>Difficulty<select class="form-select" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label><label>Optional PDF study material<input name="quizPdf" type="file" accept=".pdf,application/pdf"></label><p class="form-note">Add a topic, upload a PDF, or use both. The PDF becomes the quiz source when provided.</p><button class="primary-action" type="submit">Start quiz <span>→</span></button>`,
     assignment: `<label>Assignment question<textarea name="question" rows="5" placeholder="Paste the question or brief here..." required></textarea></label><button class="primary-action" type="submit">Break it down <span>→</span></button>`,
     coding: `<label>Language<select class="form-select" name="language" required><option value="python">Python</option><option value="java">Java</option><option value="javascript">JavaScript</option></select></label><label>Code<textarea name="code" rows="8" placeholder="Paste your code here..." required></textarea></label><label>What are you trying to do?<textarea name="question" rows="3" placeholder="Optional: explain the goal or the error you are seeing"></textarea></label><button class="primary-action" type="submit">Analyse code <span>→</span></button>`,
     career: `<label>Career you are interested in<input name="career" placeholder="e.g. Data Engineer" required></label><p class="form-note">StudyBuddy gives general guidance and explains how to start learning, without promising job outcomes.</p><button class="primary-action" type="submit">Explore career <span>→</span></button>`
@@ -655,16 +689,22 @@ modalForm.addEventListener('submit', async (event) => {
       await state.quizUploadPromise;
       if (!state.uploadMaterial) throw new Error('The PDF could not be processed. Please choose a readable PDF and try again.');
     }
+    if (feature === 'quiz') {
+      data.materialText = state.uploadMaterial?.text || '';
+      data.materialName = state.uploadMaterial?.name || '';
+      if (!String(data.topic || '').trim() && !data.materialText.trim()) {
+        throw new Error('Enter a quiz topic or upload a readable PDF.');
+      }
+
+      closeModal();
+      state.quizState = null;
+      startQuiz(data.topic || 'the uploaded document', data.difficulty || 'medium', '', Number(data.questionCount));
+      return;
+    }
     const response = await fetch('/api/feature', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature, data }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Could not create your study request.');
     closeModal();
-
-    if (feature === 'quiz') {
-      state.quizState = null;
-      startQuiz(data.topic, data.difficulty || 'medium', data.focus || '', Number(data.questionCount));
-      return;
-    }
 
     await sendMessage(result.message, feature);
   } catch (error) {

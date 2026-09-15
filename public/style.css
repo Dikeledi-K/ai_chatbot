@@ -793,6 +793,35 @@ h2 {
   background: var(--bg-panel-strong);
 }
 
+.quiz-settings {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  color: var(--muted, #6b7280);
+  font-size: 0.85rem;
+}
+
+.quiz-settings label {
+  font-weight: 700;
+  color: var(--ink, #1f2937);
+}
+
+.quiz-settings input,
+.quiz-settings select {
+  width: 70px;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #d7dbe2);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+
+.quiz-settings select {
+  width: auto;
+  min-width: 105px;
+}
+
 .upload-materials {
   display: grid;
   gap: 8px;
