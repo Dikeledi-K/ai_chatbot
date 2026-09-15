@@ -44,6 +44,16 @@ test('changes fallback Python questions for hard difficulty', () => {
   assert.equal(hard.concept, 'Aliasing and mutation');
   assert.equal(hard.difficulty, 'hard');
 });
+test('accepts difficult difficulty and creates a distinct advanced question set', () => {
+  assert.equal(validateFeaturePayload('quiz', { topic: 'Python data structures', difficulty: 'difficult', questionCount: '1' }).valid, true);
+  const easy = createFallbackQuiz('Python data structures', 'easy', '', 1)[0];
+  const hard = createFallbackQuiz('Python data structures', 'hard', '', 1)[0];
+  const difficult = createFallbackQuiz('Python data structures', 'difficult', '', 1)[0];
+  assert.notEqual(difficult.question, easy.question);
+  assert.notEqual(difficult.question, hard.question);
+  assert.equal(difficult.difficulty, 'difficult');
+  assert.equal(difficult.concept, 'Reference graphs');
+});
 test('changes fallback Python questions for easy difficulty', () => {
   const easy = createFallbackQuiz('Python data structures', 'easy', '', 1)[0];
   const medium = createFallbackQuiz('Python data structures', 'medium', '', 1)[0];
