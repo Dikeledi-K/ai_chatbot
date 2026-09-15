@@ -141,7 +141,14 @@ app.post('/api/quiz', async (request, response) => {
   const source = materialText
     ? `\n\nStudy source${materialName ? ` (${materialName})` : ''}:\n${String(materialText).slice(0, 50000)}\n\nBase every question and answer on this source. Do not invent details that are not supported by it.`
     : '';
-  const prompt = `${buildQuizPrompt(topic || 'the uploaded study document', difficulty, '')}\nRequested questions: ${Number(questionCount)}.${source}`;
+  const levelGuidance = difficulty === 'easy'
+    ? 'Use clear recall and one-step application questions.'
+    : difficulty === 'hard'
+      ? 'Use multi-step application questions with plausible misconceptions and practical scenarios.'
+      : difficulty === 'difficult'
+        ? 'Use challenging unfamiliar scenarios, analysis, trade-offs, and multi-step reasoning. Do not reuse Easy or Hard wording.'
+        : 'Use balanced application questions.';
+  const prompt = `${buildQuizPrompt(topic || 'the uploaded study document', difficulty, '')}\nDifficulty guidance: ${levelGuidance}\nRequested questions: ${Number(questionCount)}.${source}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
 
