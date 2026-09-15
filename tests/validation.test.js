@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateInput, validateFeaturePayload } from '../validation.js';
-import { calculateQuizScore, buildStudyCoachFeedback } from '../public/studybuddy-logic.js';
+import { calculateQuizScore, buildStudyCoachFeedback, createFallbackQuiz } from '../public/studybuddy-logic.js';
 
 test('rejects empty input', () => assert.equal(validateInput('   ').valid, false));
 test('rejects input longer than the limit', () => assert.equal(validateInput('a'.repeat(6001)).valid, false));
@@ -13,7 +13,14 @@ test('accepts a complete exam preparation request', () => assert.equal(validateF
   topics: 'Cells and photosynthesis',
   focus: 'Photosynthesis'
 }).valid, true));
-test('accepts a complete quiz request', () => assert.equal(validateFeaturePayload('quiz', { topic: 'Photosynthesis' }).valid, true));
+test('accepts a complete quiz request with a chosen question count', () => assert.equal(validateFeaturePayload('quiz', { topic: 'Photosynthesis', questionCount: '8' }).valid, true));
+test('rejects quiz question counts outside the supported range', () => {
+  assert.equal(validateFeaturePayload('quiz', { topic: 'Photosynthesis', questionCount: '0' }).valid, false);
+  assert.equal(validateFeaturePayload('quiz', { topic: 'Photosynthesis', questionCount: '21' }).valid, false);
+});
+test('creates the requested number of fallback quiz questions', () => {
+  assert.equal(createFallbackQuiz('Photosynthesis', 'medium', '', 8).length, 8);
+});
 test('accepts supported coding inputs', () => assert.equal(validateFeaturePayload('coding', { language: 'python', code: 'print(1 + 1)' }).valid, true));
 test('validates unsupported coding languages', () => assert.equal(validateFeaturePayload('coding', { language: 'ruby', code: 'puts 1' }).valid, false));
 test('accepts career guidance input', () => assert.equal(validateFeaturePayload('career', { career: 'Data Engineer' }).valid, true));

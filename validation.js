@@ -15,7 +15,7 @@ export function validateFeaturePayload(feature, data = {}) {
   const fields = {
     planner: ['subject', 'examDate', 'topics', 'hours'],
     exam: ['subject', 'examDate', 'topics', 'focus'],
-    quiz: ['topic'],
+    quiz: ['topic', 'questionCount'],
     assignment: ['question'],
     coding: ['language', 'code'],
     career: ['career']
@@ -36,6 +36,13 @@ export function validateFeaturePayload(feature, data = {}) {
 
   if (feature === 'quiz' && typeof data.difficulty === 'string' && data.difficulty.trim() && !['easy', 'medium', 'hard'].includes(data.difficulty.trim().toLowerCase())) {
     return { valid: false, message: 'Please choose an easy, medium, or hard difficulty.' };
+  }
+
+  if (feature === 'quiz') {
+    const questionCount = Number(data.questionCount);
+    if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > 20) {
+      return { valid: false, message: 'Choose between 1 and 20 quiz questions.' };
+    }
   }
 
   return { valid: true };

@@ -429,16 +429,16 @@ function finishQuiz() {
 
   summary.querySelector('[data-action="practice-weak"]').addEventListener('click', () => {
     const weakAreas = state.quizState.questions.filter((question) => Number(state.quizState.answers[question.id || `q${state.quizState.questions.indexOf(question) + 1}`]) !== Number(question.correctAnswerIndex)).map((question) => question.concept || 'Core topic').slice(0, 3);
-    startQuiz(state.quizState.topic, state.quizState.difficulty, weakAreas.join(', '));
+    startQuiz(state.quizState.topic, state.quizState.difficulty, weakAreas.join(', '), state.quizState.questionCount);
   });
 
   messages.append(summary);
   messages.scrollTop = messages.scrollHeight;
 }
 
-function startQuiz(topic, difficulty = 'medium', focus = '') {
-  const questions = createFallbackQuiz(topic, difficulty, focus);
-  state.quizState = { topic, difficulty, questions, currentIndex: 0, answers: {} };
+function startQuiz(topic, difficulty = 'medium', focus = '', questionCount = 5) {
+  const questions = createFallbackQuiz(topic, difficulty, focus, questionCount);
+  state.quizState = { topic, difficulty, focus, questionCount, questions, currentIndex: 0, answers: {} };
   const intro = document.createElement('div');
   intro.className = 'message assistant';
   intro.innerHTML = `<div class="avatar">✦</div><div class="bubble"><p>Let’s practise ${escapeHtml(topic)} at a ${escapeHtml(difficulty)} level. I’ll ask one question at a time and then give you a friendly Study Coach review.</p></div></div>`;
@@ -510,7 +510,7 @@ function openFeatureModal(feature) {
   const templates = {
     planner: `<label>Subject<input name="subject" placeholder="e.g. Biology" required></label><label>Exam date<input name="examDate" type="date" required></label><label>Number of topics<input name="topics" type="number" min="1" max="100" placeholder="e.g. 8" required></label><label>Study time per week<input name="hours" type="number" min="1" max="80" placeholder="e.g. 4" required></label><button class="primary-action" type="submit">Create my plan <span>→</span></button>`,
     exam: `<label>Subject<input name="subject" placeholder="e.g. History" required></label><label>Exam date<input name="examDate" type="date" required></label><label>Key topics<textarea name="topics" rows="3" placeholder="List the topics you need to revise" required></textarea></label><label>Focus area<input name="focus" placeholder="e.g. Essay structure or photosynthesis" required></label><button class="primary-action" type="submit">Prep for exam <span>→</span></button>`,
-    quiz: `<label>Quiz topic<input name="topic" placeholder="e.g. Fractions" required></label><label>Difficulty<select class="form-select" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label><label>Optional focus area<input name="focus" placeholder="e.g. Variables, loops, functions"></label><p class="form-note">StudyBuddy will ask one question at a time so you can practise, not just peek at answers.</p><button class="primary-action" type="submit">Start quiz <span>→</span></button>`,
+    quiz: `<label>Quiz topic<input name="topic" placeholder="e.g. Fractions" required></label><label>Number of questions<input name="questionCount" type="number" min="1" max="20" placeholder="e.g. 5" required></label><label>Difficulty<select class="form-select" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label><label>Optional focus area<input name="focus" placeholder="e.g. Variables, loops, functions"></label><p class="form-note">Choose how many questions you want. StudyBuddy will ask them one at a time.</p><button class="primary-action" type="submit">Start quiz <span>→</span></button>`,
     assignment: `<label>Assignment question<textarea name="question" rows="5" placeholder="Paste the question or brief here..." required></textarea></label><button class="primary-action" type="submit">Break it down <span>→</span></button>`,
     coding: `<label>Language<select class="form-select" name="language" required><option value="python">Python</option><option value="java">Java</option><option value="javascript">JavaScript</option></select></label><label>Code<textarea name="code" rows="8" placeholder="Paste your code here..." required></textarea></label><label>What are you trying to do?<textarea name="question" rows="3" placeholder="Optional: explain the goal or the error you are seeing"></textarea></label><button class="primary-action" type="submit">Analyse code <span>→</span></button>`,
     career: `<label>Career you are interested in<input name="career" placeholder="e.g. Data Engineer" required></label><p class="form-note">StudyBuddy gives general guidance and explains how to start learning, without promising job outcomes.</p><button class="primary-action" type="submit">Explore career <span>→</span></button>`
@@ -546,7 +546,7 @@ modalForm.addEventListener('submit', async (event) => {
 
     if (feature === 'quiz') {
       state.quizState = null;
-      startQuiz(data.topic, data.difficulty || 'medium', data.focus || '');
+      startQuiz(data.topic, data.difficulty || 'medium', data.focus || '', Number(data.questionCount));
       return;
     }
 

@@ -91,8 +91,9 @@ export function getFriendlyApiErrorMessage(error = {}) {
   return 'StudyBuddy could not reach the AI service. Check your connection and try again.';
 }
 
-export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', focus = '') {
+export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', focus = '', questionCount = 5) {
   const topicLabel = topic.trim() || 'your topic';
+  const count = Math.min(20, Math.max(1, Number(questionCount) || 5));
   const focusList = focus
     .split(',')
     .map((item) => item.trim())
@@ -147,7 +148,7 @@ export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', 
     }
   ];
 
-  return Array.from({ length: 5 }, (_, index) => {
+  return Array.from({ length: count }, (_, index) => {
     const concept = conceptPool[index % conceptPool.length];
     const template = questionTemplates[index % questionTemplates.length];
     const content = template.generator(concept);
