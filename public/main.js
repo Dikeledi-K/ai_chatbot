@@ -1,20 +1,356 @@
 import { buildStudyCoachFeedback, calculateQuizScore, getFriendlyApiErrorMessage, createFallbackQuiz } from './studybuddy-logic.js';
+import { applyTheme, getStoredTheme, persistTheme, resolveThemePreference } from './theme.js';
+import { generateConversationTitle, loadStoredConversations, normalizeConversation, saveConversations } from './chat-history.js';
 
-const state = { feature: 'chat', busy: false, quizState: null, history: [] };
+const state = { feature: 'chat', busy: false, quizState: null, history: [], conversations: [], activeConversationId: null };
 const featureNames = { chat: 'Study chat', explain: 'Explain a topic', summarize: 'Summarise notes', planner: 'Study planner', exam: 'Exam preparation', quiz: 'Quiz me', assignment: 'Assignment helper', coding: 'Coding Helper', career: 'Career Guidance' };
 const form = document.querySelector('#chat-form');
 const input = document.querySelector('#message-input');
 const messages = document.querySelector('#messages');
 const sendButton = document.querySelector('#send-button');
 const statusText = document.querySelector('#status-text');
+const themeToggle = document.querySelector('#theme-toggle');
+const historySidebar = document.querySelector('#history-sidebar');
+const historyList = document.querySelector('#history-list');
+const historySearch = document.querySelector('#history-search');
+const newChatButton = document.querySelector('#new-chat-button');
+const clearHistoryButton = document.querySelector('#clear-history');
+const sidebarToggle = document.querySelector('#sidebar-toggle');
+const sidebarClose = document.querySelector('#sidebar-close');
+const layout = document.querySelector('.layout');
 
-function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character]); }
-function formatAnswer(value) { return escapeHtml(value).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/^### (.*)$/gm, '<h3>$1</h3>').replace(/^- (.*)$/gm, '<li>$1</li>').replace(/(?:<li>.*<\/li>\n?)+/g, (list) => `<ul>${list}</ul>`).replace(/\n/g, '<br>'); }
-function addMessage(content, role = 'user', loading = false) { const item = document.createElement('div'); item.className = `message ${role}${loading ? ' loading-message' : ''}`; item.innerHTML = role === 'assistant' ? `<div class="avatar">✦</div><div class="bubble">${loading ? '<span class="typing"><i></i><i></i><i></i></span>' : `<div>${formatAnswer(content)}</div>`}</div>` : `<div class="bubble">${escapeHtml(content).replace(/\n/g, '<br>')}</div>`; messages.append(item); messages.scrollTop = messages.scrollHeight; return item; }
-function setBusy(value) { state.busy = value; sendButton.disabled = value; input.disabled = value; statusText.textContent = value ? 'Thinking...' : 'Ready to learn'; document.querySelector('.status-dot').classList.toggle('working', value); }
-function selectFeature(feature) { state.feature = feature; document.querySelectorAll('.feature-card').forEach((card) => card.classList.toggle('active', card.dataset.feature === feature)); document.querySelector('#mode-label').textContent = feature === 'chat' ? 'STUDY CHAT' : featureNames[feature].toUpperCase(); document.querySelector('#mode-title').textContent = feature === 'chat' ? 'What are you working on?' : `${featureNames[feature]} with confidence.`; input.placeholder = feature === 'summarize' ? 'Paste your notes here...' : feature === 'explain' ? 'What topic should we unpack?' : feature === 'exam' ? 'Tell me what you need to revise before the exam...' : feature === 'coding' ? 'Paste your code and describe what you are trying to do...' : feature === 'career' ? 'Tell me a career you are interested in...' : 'Ask a question or paste your notes...'; }
-function conversationContext() { return state.history.slice(-12).map((entry) => `${entry.role === 'user' ? 'Student' : 'StudyBuddy'}: ${entry.content}`).join('\n\n').slice(-12000); }
-async function sendMessage(message, feature = state.feature) { if (state.busy || !message.trim()) return; const context = conversationContext(); setBusy(true); addMessage(message); const loading = addMessage('', 'assistant', true); try { const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, feature, context }) }); const result = await response.json(); loading.remove(); if (!response.ok) throw new Error(result.error || 'Something went wrong.'); addMessage(result.answer, 'assistant'); state.history.push({ role: 'user', content: message }, { role: 'assistant', content: result.answer }); } catch (error) { loading.remove(); addMessage(getFriendlyApiErrorMessage(error), 'assistant'); } finally { setBusy(false); input.focus(); } }
+const welcomeMessages = {
+  chat: 'Hi! I’m StudyBuddy. Ask me to explain a tricky topic, organise your notes, plan revision, or quiz you.',
+  explain: 'Tell me the topic you want to understand, and I’ll break it down step by step with a simple example.',
+  summarize: 'Paste your notes here and I’ll pull out the key ideas while keeping the original meaning clear.',
+  planner: 'Tell me your subject, exam date, number of topics, and available study time so I can build a realistic plan.',
+  exam: 'Tell me what subject and topics you need to revise, and I’ll help you focus before exam day.',
+  quiz: 'Choose Quiz me above to start a practice quiz one question at a time.',
+  assignment: 'Share your assignment question or brief and I’ll help you understand the task and plan your own work.',
+  coding: 'Paste your code and explain what you are trying to do. I’ll help you debug it and understand why.',
+  career: 'Tell me about a career you are interested in and I’ll suggest skills, subjects, projects, and learning steps.'
+};
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character]);
+}
+
+function formatAnswer(value) {
+  return escapeHtml(value)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^### (.*)$/gm, '<h3>$1</h3>')
+    .replace(/^- (.*)$/gm, '<li>$1</li>')
+    .replace(/(?:<li>.*<\/li>\n?)+/g, (list) => `<ul>${list}</ul>`)
+    .replace(/\n/g, '<br>');
+}
+
+function addMessage(content, role = 'user', loading = false) {
+  const item = document.createElement('div');
+  item.className = `message ${role}${loading ? ' loading-message' : ''}`;
+  item.innerHTML = role === 'assistant'
+    ? `<div class="avatar">✦</div><div class="bubble">${loading ? '<span class="typing"><i></i><i></i><i></i></span>' : `<div>${formatAnswer(content)}</div>`}</div>`
+    : `<div class="bubble">${escapeHtml(content).replace(/\n/g, '<br>')}</div>`;
+  messages.append(item);
+  messages.scrollTop = messages.scrollHeight;
+  return item;
+}
+
+function setBusy(value) {
+  state.busy = value;
+  sendButton.disabled = value;
+  input.disabled = value;
+  statusText.textContent = value ? 'Thinking...' : 'Ready to learn';
+  document.querySelector('.status-dot').classList.toggle('working', value);
+}
+
+function selectFeature(feature) {
+  state.feature = feature;
+  document.querySelectorAll('.feature-card').forEach((card) => card.classList.toggle('active', card.dataset.feature === feature));
+  document.querySelector('#mode-label').textContent = feature === 'chat' ? 'STUDY CHAT' : featureNames[feature].toUpperCase();
+  document.querySelector('#mode-title').textContent = feature === 'chat' ? 'What are you working on?' : `${featureNames[feature]} with confidence.`;
+  input.placeholder = feature === 'summarize' ? 'Paste your notes here...' : feature === 'explain' ? 'What topic should we unpack?' : feature === 'planner' ? 'Subject, exam date, topics, and hours per week...' : feature === 'exam' ? 'Tell me what you need to revise before the exam...' : feature === 'coding' ? 'Paste your code and describe what you are trying to do...' : feature === 'career' ? 'Tell me a career you are interested in...' : 'Ask a question or paste your notes...';
+  if (!state.history.length && messages) {
+    renderMessagesFromHistory();
+  }
+}
+
+function conversationContext() {
+  return state.history.slice(-12).map((entry) => `${entry.role === 'user' ? 'Student' : 'StudyBuddy'}: ${entry.content}`).join('\n\n').slice(-12000);
+}
+
+function getCurrentConversation() {
+  return state.conversations.find((conversation) => conversation.id === state.activeConversationId) || null;
+}
+
+function renderMessagesFromHistory() {
+  messages.innerHTML = '';
+  if (!state.history.length) {
+    const welcome = welcomeMessages[state.feature] || welcomeMessages.chat;
+    const suggestions = state.feature === 'chat'
+      ? '<div class="suggestions"><button data-suggestion="Explain photosynthesis to me like I am a beginner." data-feature="explain">Explain a topic</button><button data-suggestion="Help me make a study plan for my next test." data-feature="planner">Plan my study</button></div>'
+      : '';
+    messages.innerHTML = `<div class="message assistant"><div class="avatar">✦</div><div class="bubble"><p>${escapeHtml(welcome)}</p>${suggestions}</div></div>`;
+    return;
+  }
+
+  state.history.forEach((entry) => addMessage(entry.content, entry.role));
+}
+
+function updateConversationSnapshot() {
+  if (!state.activeConversationId) {
+    return;
+  }
+
+  const conversation = getCurrentConversation();
+  if (!conversation) {
+    return;
+  }
+
+  conversation.messages = state.history.map((entry) => ({ ...entry, timestamp: entry.timestamp || Date.now() }));
+  conversation.feature = state.feature;
+  conversation.updatedAt = Date.now();
+
+  const firstUserMessage = state.history.find((entry) => entry.role === 'user');
+  if (firstUserMessage) {
+    conversation.title = generateConversationTitle(firstUserMessage.content);
+  }
+}
+
+function persistConversationState() {
+  updateConversationSnapshot();
+
+  const sorted = [...state.conversations]
+    .map((conversation) => normalizeConversation(conversation))
+    .filter(Boolean)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  state.conversations = sorted;
+  saveConversations(sorted);
+  renderHistoryList();
+}
+
+function renderHistoryList() {
+  if (!historyList) return;
+
+  const query = (historySearch?.value || '').trim().toLowerCase();
+  const filtered = state.conversations.filter((conversation) => {
+    const haystack = `${conversation.title} ${conversation.messages.map((entry) => entry.content).join(' ')}`.toLowerCase();
+    return !query || haystack.includes(query);
+  });
+
+  if (!filtered.length) {
+    historyList.innerHTML = '<div class="history-empty">No saved chats yet.</div>';
+    return;
+  }
+
+  historyList.innerHTML = filtered.map((conversation) => {
+    const preview = conversation.messages
+      .slice(-2)
+      .map((entry) => entry.content)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return `
+      <div class="history-item ${state.activeConversationId === conversation.id ? 'active' : ''}" data-id="${conversation.id}">
+        <div class="history-item__content">
+          <div class="history-item__header">
+            <strong>${escapeHtml(conversation.title || 'Untitled chat')}</strong>
+            <button class="history-item__delete" type="button" data-action="delete" data-id="${conversation.id}" aria-label="Delete conversation">×</button>
+          </div>
+          <span class="history-item__meta">${new Date(conversation.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+          <p>${escapeHtml(preview || 'No messages yet.')}</p>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function createNewConversation() {
+  const currentConversation = getCurrentConversation();
+  if (currentConversation && state.history.length) {
+    currentConversation.messages = [...state.history];
+    currentConversation.feature = state.feature;
+    currentConversation.updatedAt = Date.now();
+    if (state.history.some((entry) => entry.role === 'user')) {
+      currentConversation.title = generateConversationTitle(state.history.find((entry) => entry.role === 'user').content);
+    }
+    persistConversationState();
+  }
+
+  const id = `chat-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  state.activeConversationId = id;
+  state.history = [];
+  state.quizState = null;
+  state.conversations = state.conversations.filter((conversation) => conversation.id !== id);
+  state.conversations.unshift({
+    id,
+    title: 'New chat',
+    feature: 'chat',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    messages: []
+  });
+  saveConversations(state.conversations);
+  renderMessagesFromHistory();
+  renderHistoryList();
+  input.focus();
+}
+
+function openConversation(conversationId) {
+  const conversation = state.conversations.find((item) => item.id === conversationId);
+  if (!conversation) return;
+
+  state.activeConversationId = conversation.id;
+  state.history = conversation.messages.map((entry) => ({ ...entry, timestamp: entry.timestamp || Date.now() }));
+  state.feature = conversation.feature || 'chat';
+  state.quizState = null;
+  selectFeature(state.feature);
+  renderMessagesFromHistory();
+  renderHistoryList();
+  closeSidebarOnMobile();
+}
+
+function deleteConversation(conversationId) {
+  const conversation = state.conversations.find((item) => item.id === conversationId);
+  if (!conversation) return;
+
+  const confirmed = window.confirm(`Delete "${conversation.title}"? This cannot be undone.`);
+  if (!confirmed) return;
+
+  state.conversations = state.conversations.filter((item) => item.id !== conversationId);
+
+  if (state.activeConversationId === conversationId) {
+    state.activeConversationId = null;
+    state.history = [];
+    state.quizState = null;
+    renderMessagesFromHistory();
+  }
+
+  saveConversations(state.conversations);
+  renderHistoryList();
+}
+
+function clearAllHistory() {
+  if (!state.conversations.length) return;
+
+  const confirmed = window.confirm('Clear all saved chat history? This cannot be undone.');
+  if (!confirmed) return;
+
+  state.conversations = [];
+  state.activeConversationId = null;
+  state.history = [];
+  state.quizState = null;
+  saveConversations([]);
+  renderMessagesFromHistory();
+  renderHistoryList();
+}
+
+function closeSidebarOnMobile() {
+  if (!historySidebar) return;
+  historySidebar.classList.remove('open');
+  if (layout) layout.classList.add('history-collapsed');
+  if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'false');
+}
+
+function toggleSidebar() {
+  if (!historySidebar) return;
+  const isOpen = window.innerWidth > 900
+    ? layout?.classList.contains('history-collapsed')
+    : !historySidebar.classList.contains('open');
+  historySidebar.classList.toggle('open', isOpen);
+  layout?.classList.toggle('history-collapsed', !isOpen);
+  if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', String(isOpen));
+}
+
+async function sendMessage(message, feature = state.feature) {
+  if (state.busy || !message.trim()) return;
+
+  if (!state.activeConversationId) {
+    const id = `chat-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    state.activeConversationId = id;
+    state.conversations.unshift({
+      id,
+      title: generateConversationTitle(message.trim()),
+      feature,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: []
+    });
+  }
+
+  const activeConversation = getCurrentConversation();
+  if (activeConversation) {
+    activeConversation.feature = feature;
+    activeConversation.updatedAt = Date.now();
+  }
+
+  const userMessage = { role: 'user', content: message.trim(), timestamp: Date.now() };
+  state.history.push(userMessage);
+  if (activeConversation) {
+    activeConversation.messages = [...state.history];
+    activeConversation.title = generateConversationTitle(message.trim());
+  }
+  persistConversationState();
+
+  setBusy(true);
+  addMessage(message.trim());
+  const loading = addMessage('', 'assistant', true);
+
+  try {
+    const context = conversationContext();
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: message.trim(), feature, context })
+    });
+
+    const result = await response.json();
+    loading.remove();
+    if (!response.ok) throw new Error(result.error || 'Something went wrong.');
+
+    const answer = result.answer;
+    addMessage(answer, 'assistant');
+    state.history.push({ role: 'assistant', content: answer, timestamp: Date.now() });
+    if (activeConversation) {
+      activeConversation.messages = [...state.history];
+      activeConversation.updatedAt = Date.now();
+    }
+    persistConversationState();
+  } catch (error) {
+    loading.remove();
+    const fallback = getFriendlyApiErrorMessage(error);
+    addMessage(fallback, 'assistant');
+    state.history.push({ role: 'assistant', content: fallback, timestamp: Date.now() });
+    if (activeConversation) {
+      activeConversation.messages = [...state.history];
+      activeConversation.updatedAt = Date.now();
+    }
+    persistConversationState();
+  } finally {
+    setBusy(false);
+    input.focus();
+  }
+}
+
+function initializeHistory() {
+  const stored = loadStoredConversations();
+  state.conversations = stored;
+
+  if (stored.length) {
+    const newest = stored[0];
+    state.activeConversationId = newest.id;
+    state.history = newest.messages.map((entry) => ({ ...entry, timestamp: entry.timestamp || Date.now() }));
+    state.feature = newest.feature || 'chat';
+    selectFeature(state.feature);
+  } else {
+    state.activeConversationId = null;
+    state.history = [];
+  }
+
+  renderMessagesFromHistory();
+  renderHistoryList();
+}
 
 function renderQuizQuestion() {
   if (!state.quizState) return;
@@ -110,14 +446,54 @@ function startQuiz(topic, difficulty = 'medium', focus = '') {
   renderQuizQuestion();
 }
 
-form.addEventListener('submit', (event) => { event.preventDefault(); const value = input.value.trim(); input.value = ''; sendMessage(value); });
-input.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); form.requestSubmit(); } });
-document.querySelectorAll('.feature-card').forEach((card) => card.addEventListener('click', () => { const feature = card.dataset.feature; selectFeature(feature); if (feature !== 'chat' && ['planner', 'exam', 'quiz', 'assignment', 'coding', 'career'].includes(feature)) openFeatureModal(feature); else input.focus(); }));
-document.querySelectorAll('[data-suggestion]').forEach((button) => button.addEventListener('click', () => { selectFeature('chat'); input.value = button.dataset.suggestion; input.focus(); }));
-document.querySelector('#clear-chat').addEventListener('click', () => { messages.innerHTML = '<div class="message assistant"><div class="avatar">✦</div><div class="bubble"><p>Fresh page, fresh thinking. What should we work on?</p></div></div>'; state.quizState = null; state.history = []; });
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const value = input.value.trim();
+  input.value = '';
+  sendMessage(value);
+});
+
+input.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    form.requestSubmit();
+  }
+});
+
+document.querySelectorAll('.feature-card').forEach((card) => card.addEventListener('click', () => {
+  const feature = card.dataset.feature;
+  selectFeature(feature);
+  if (feature !== 'chat' && ['planner', 'exam', 'quiz', 'assignment', 'coding', 'career'].includes(feature)) {
+    openFeatureModal(feature);
+  } else {
+    input.focus();
+  }
+}));
+
+messages.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-suggestion]');
+  if (!button) return;
+
+  const feature = button.dataset.feature || 'chat';
+  selectFeature(feature);
+  input.value = button.dataset.suggestion || '';
+
+  if (feature === 'planner') {
+    openFeatureModal(feature);
+    return;
+  }
+
+  renderMessagesFromHistory();
+  input.focus();
+});
+
+document.querySelector('#clear-chat').addEventListener('click', () => {
+  createNewConversation();
+});
 
 const modal = document.querySelector('#feature-modal');
 const modalForm = document.querySelector('#feature-form');
+
 function openFeatureModal(feature) {
   const labels = {
     planner: ['STUDY PLANNER', 'Build a plan that fits your week.'],
@@ -145,8 +521,15 @@ function openFeatureModal(feature) {
   modalForm.querySelector('input, textarea, select').focus();
 }
 
-function closeModal() { modal.classList.add('hidden'); }
-document.querySelector('#modal-close').addEventListener('click', closeModal); modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+function closeModal() {
+  modal.classList.add('hidden');
+}
+
+document.querySelector('#modal-close').addEventListener('click', closeModal);
+modal.addEventListener('click', (event) => {
+  if (event.target === modal) closeModal();
+});
+
 modalForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const feature = state.feature;
@@ -175,6 +558,110 @@ modalForm.addEventListener('submit', async (event) => {
   }
 });
 
+function updateThemeToggle(theme) {
+  if (!themeToggle) return;
+
+  const isDark = theme === 'dark';
+  themeToggle.setAttribute('aria-pressed', String(isDark));
+  themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+
+  const icon = themeToggle.querySelector('.theme-toggle__icon');
+  const label = themeToggle.querySelector('.theme-toggle__label');
+  if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+  if (label) label.textContent = isDark ? 'Light mode' : 'Dark mode';
+}
+
+function initializeTheme() {
+  const savedTheme = getStoredTheme();
+  const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = resolveThemePreference(savedTheme, systemPrefersDark);
+
+  applyTheme(theme);
+  updateThemeToggle(theme);
+}
+
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    const nextTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(nextTheme);
+    persistTheme(nextTheme);
+    updateThemeToggle(nextTheme);
+  });
+}
+
+if (newChatButton) {
+  newChatButton.addEventListener('click', () => {
+    createNewConversation();
+    closeSidebarOnMobile();
+  });
+}
+
+if (clearHistoryButton) {
+  clearHistoryButton.addEventListener('click', () => {
+    clearAllHistory();
+    closeSidebarOnMobile();
+  });
+}
+
+if (historySearch) {
+  historySearch.addEventListener('input', () => {
+    renderHistoryList();
+  });
+}
+
+if (historyList) {
+  historyList.addEventListener('click', (event) => {
+    const deleteButton = event.target.closest('[data-action="delete"]');
+    if (deleteButton) {
+      deleteConversation(deleteButton.dataset.id);
+      return;
+    }
+
+    const item = event.target.closest('.history-item');
+    if (item) {
+      openConversation(item.dataset.id);
+    }
+  });
+}
+
+if (sidebarToggle) {
+  sidebarToggle.addEventListener('click', toggleSidebar);
+}
+
+if (sidebarClose) {
+  sidebarClose.addEventListener('click', closeSidebarOnMobile);
+}
+
+document.addEventListener('click', (event) => {
+  if (window.innerWidth > 900 || !historySidebar?.classList.contains('open')) return;
+  if (!historySidebar.contains(event.target) && event.target !== sidebarToggle) {
+    closeSidebarOnMobile();
+  }
+});
+
 window.addEventListener('DOMContentLoaded', () => {
   selectFeature('chat');
+  initializeTheme();
+  initializeHistory();
 });
+
+window.addEventListener('beforeunload', () => {
+  if (state.activeConversationId && state.history.length) {
+    const conversation = getCurrentConversation();
+    if (conversation) {
+      conversation.messages = [...state.history];
+      conversation.feature = state.feature;
+      conversation.updatedAt = Date.now();
+      saveConversations(state.conversations);
+    }
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && historySidebar?.classList.contains('open')) {
+    closeSidebarOnMobile();
+  }
+});
+
+renderMessagesFromHistory();
+renderHistoryList();
