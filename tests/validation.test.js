@@ -14,6 +14,8 @@ test('accepts a complete exam preparation request', () => assert.equal(validateF
   focus: 'Photosynthesis'
 }).valid, true));
 test('accepts a complete quiz request with a chosen question count', () => assert.equal(validateFeaturePayload('quiz', { topic: 'Photosynthesis', questionCount: '8' }).valid, true));
+test('accepts a document-only quiz request without a topic', () => assert.equal(validateFeaturePayload('quiz', { topic: '', materialText: 'Photosynthesis converts light energy into chemical energy.', questionCount: '5' }).valid, true));
+test('requires a topic when no quiz document is provided', () => assert.equal(validateFeaturePayload('quiz', { topic: '', questionCount: '5' }).valid, false));
 test('rejects quiz question counts outside the supported range', () => {
   assert.equal(validateFeaturePayload('quiz', { topic: 'Photosynthesis', questionCount: '0' }).valid, false);
   assert.equal(validateFeaturePayload('quiz', { topic: 'Photosynthesis', questionCount: '21' }).valid, false);
@@ -27,6 +29,39 @@ test('creates the requested number of fallback quiz questions', () => {
     assert.equal(new Set(question.options).size, 4);
     assert.equal(question.options[question.correctAnswerIndex].includes('guess'), false);
   });
+});
+test('creates subject-specific Python data-structures questions', () => {
+  const questions = createFallbackQuiz('Python data structures', 'medium', '', 5);
+  assert.ok(questions.some((question) => question.question.includes('values[1:3]')));
+  assert.ok(questions.some((question) => question.concept === 'Dictionaries'));
+  assert.ok(questions.every((question) => question.options.length === 4));
+  assert.ok(questions.every((question) => question.options[question.correctAnswerIndex]));
+});
+test('changes fallback Python questions for hard difficulty', () => {
+  const easy = createFallbackQuiz('Python data structures', 'easy', '', 1)[0];
+  const hard = createFallbackQuiz('Python data structures', 'hard', '', 1)[0];
+  assert.notEqual(easy.question, hard.question);
+  assert.equal(hard.concept, 'Aliasing and mutation');
+  assert.equal(hard.difficulty, 'hard');
+});
+test('changes fallback Python questions for easy difficulty', () => {
+  const easy = createFallbackQuiz('Python data structures', 'easy', '', 1)[0];
+  const medium = createFallbackQuiz('Python data structures', 'medium', '', 1)[0];
+  assert.notEqual(easy.question, medium.question);
+  assert.equal(easy.concept, 'List basics');
+  assert.equal(easy.difficulty, 'easy');
+});
+test('creates realistic health questions', () => {
+  const questions = createFallbackQuiz('Health and nutrition', 'medium', '', 4);
+  assert.ok(questions.some((question) => question.concept === 'Evidence and health claims'));
+  assert.ok(questions.some((question) => question.question.includes('social media')));
+  assert.ok(questions.every((question) => question.options.length === 4));
+});
+test('creates realistic agriculture questions', () => {
+  const questions = createFallbackQuiz('Agriculture and farming', 'medium', '', 4);
+  assert.ok(questions.some((question) => question.concept === 'Crop rotation'));
+  assert.ok(questions.some((question) => question.question.includes('irrigation')));
+  assert.ok(questions.every((question) => question.options.length === 4));
 });
 test('accepts supported coding inputs', () => assert.equal(validateFeaturePayload('coding', { language: 'python', code: 'print(1 + 1)' }).valid, true));
 test('validates unsupported coding languages', () => assert.equal(validateFeaturePayload('coding', { language: 'ruby', code: 'puts 1' }).valid, false));

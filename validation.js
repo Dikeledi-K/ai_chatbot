@@ -15,7 +15,7 @@ export function validateFeaturePayload(feature, data = {}) {
   const fields = {
     planner: ['subject', 'examDate', 'topics', 'hours'],
     exam: ['subject', 'examDate', 'topics', 'focus'],
-    quiz: ['topic', 'questionCount'],
+    quiz: ['questionCount'],
     assignment: ['question'],
     coding: ['language', 'code'],
     career: ['career']
@@ -25,6 +25,10 @@ export function validateFeaturePayload(feature, data = {}) {
     const value = String(data[field] ?? '');
     const result = validateInput(value);
     if (!result.valid) return { valid: false, message: `Please complete the ${field} field.` };
+  }
+
+  if (feature === 'quiz' && !String(data.topic ?? '').trim() && !String(data.materialText ?? '').trim()) {
+    return { valid: false, message: 'Enter a quiz topic or upload a document to generate questions from.' };
   }
 
   if (feature === 'coding') {
