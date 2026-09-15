@@ -38,8 +38,8 @@ export function validateFeaturePayload(feature, data = {}) {
     }
   }
 
-  if (feature === 'quiz' && typeof data.difficulty === 'string' && data.difficulty.trim() && !['easy', 'medium', 'hard'].includes(data.difficulty.trim().toLowerCase())) {
-    return { valid: false, message: 'Please choose an easy, medium, or hard difficulty.' };
+  if (feature === 'quiz' && typeof data.difficulty === 'string' && data.difficulty.trim() && !['easy', 'medium', 'hard', 'difficult'].includes(data.difficulty.trim().toLowerCase())) {
+    return { valid: false, message: 'Please choose Easy, Hard, or Difficult.' };
   }
 
   if (feature === 'quiz') {
