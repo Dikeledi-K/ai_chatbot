@@ -550,7 +550,7 @@ function finishQuiz() {
   messages.scrollTop = messages.scrollHeight;
 }
 
-async function startQuiz(topic, difficulty = 'medium', focus = '', questionCount = 5) {
+async function startQuiz(topic, difficulty = 'easy', focus = '', questionCount = 5) {
   const materialText = state.uploadMaterial?.text || '';
   const intro = document.createElement('div');
   intro.className = 'message assistant';
@@ -584,7 +584,7 @@ form.addEventListener('submit', (event) => {
   if (state.feature === 'quiz') {
     if (!value && !state.uploadMaterial?.text) return;
     const questionCount = Math.min(20, Math.max(1, Number(quizQuestionCount?.value) || 5));
-    const difficulty = ['easy', 'medium', 'hard'].includes(quizDifficulty?.value) ? quizDifficulty.value : 'medium';
+    const difficulty = ['easy', 'hard', 'difficult'].includes(quizDifficulty?.value) ? quizDifficulty.value : 'easy';
     if (quizQuestionCount) quizQuestionCount.value = String(questionCount);
     startQuiz(value || 'the uploaded document', difficulty, '', questionCount);
     return;
@@ -649,7 +649,7 @@ function openFeatureModal(feature) {
   const templates = {
     planner: `<label>Subject<input name="subject" placeholder="e.g. Biology" required></label><label>Exam date<input name="examDate" type="date" required></label><label>Number of topics<input name="topics" type="number" min="1" max="100" placeholder="e.g. 8" required></label><label>Study time per week<input name="hours" type="number" min="1" max="80" placeholder="e.g. 4" required></label><button class="primary-action" type="submit">Create my plan <span>→</span></button>`,
     exam: `<label>Subject<input name="subject" placeholder="e.g. History" required></label><label>Exam date<input name="examDate" type="date" required></label><label>Key topics<textarea name="topics" rows="3" placeholder="List the topics you need to revise" required></textarea></label><label>Focus area<input name="focus" placeholder="e.g. Essay structure or photosynthesis" required></label><button class="primary-action" type="submit">Prep for exam <span>→</span></button>`,
-    quiz: `<label>Quiz topic <span class="form-note">(optional when a PDF is uploaded)</span><input name="topic" placeholder="e.g. Fractions"></label><label>Number of questions<input name="questionCount" type="number" min="1" max="20" placeholder="e.g. 5" required></label><label>Difficulty<select class="form-select" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label><label>Optional PDF study material<input name="quizPdf" type="file" accept=".pdf,application/pdf"></label><p class="form-note">Add a topic, upload a PDF, or use both. The PDF becomes the quiz source when provided.</p><button class="primary-action" type="submit">Start quiz <span>→</span></button>`,
+    quiz: `<label>Quiz topic <span class="form-note">(optional when a PDF is uploaded)</span><input name="topic" placeholder="e.g. Fractions"></label><label>Number of questions<input name="questionCount" type="number" min="1" max="20" placeholder="e.g. 5" required></label><label>Difficulty<select class="form-select" name="difficulty"><option value="easy">Easy</option><option value="hard">Hard</option><option value="difficult">Difficult</option></select></label><label>Optional PDF study material<input name="quizPdf" type="file" accept=".pdf,application/pdf"></label><p class="form-note">Easy builds confidence, Hard applies concepts, and Difficult uses multi-step reasoning.</p><button class="primary-action" type="submit">Start quiz <span>→</span></button>`,
     assignment: `<label>Assignment question<textarea name="question" rows="5" placeholder="Paste the question or brief here..." required></textarea></label><button class="primary-action" type="submit">Break it down <span>→</span></button>`,
     coding: `<label>Language<select class="form-select" name="language" required><option value="python">Python</option><option value="java">Java</option><option value="javascript">JavaScript</option></select></label><label>Code<textarea name="code" rows="8" placeholder="Paste your code here..." required></textarea></label><label>What are you trying to do?<textarea name="question" rows="3" placeholder="Optional: explain the goal or the error you are seeing"></textarea></label><button class="primary-action" type="submit">Analyse code <span>→</span></button>`,
     career: `<label>Career you are interested in<input name="career" placeholder="e.g. Data Engineer" required></label><p class="form-note">StudyBuddy gives general guidance and explains how to start learning, without promising job outcomes.</p><button class="primary-action" type="submit">Explore career <span>→</span></button>`
@@ -698,7 +698,7 @@ modalForm.addEventListener('submit', async (event) => {
 
       closeModal();
       state.quizState = null;
-      startQuiz(data.topic || 'the uploaded document', data.difficulty || 'medium', '', Number(data.questionCount));
+      startQuiz(data.topic || 'the uploaded document', data.difficulty || 'easy', '', Number(data.questionCount));
       return;
     }
     const response = await fetch('/api/feature', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature, data }) });
