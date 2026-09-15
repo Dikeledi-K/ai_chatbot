@@ -18,7 +18,8 @@ StudyBuddy gives students a focused learning companion for explanations, note su
 - Generate a quiz that asks one question at a time.
 - Break down an assignment without writing submission-ready work.
 - Normal chat, loading states, validation, timeouts and friendly API errors.
-- Reusable Upload Materials control for text-based study material, with temporary PDF, DOCX and TXT extraction.
+- Dedicated PDF study mode plus a media study mode for image-based diagrams, charts and pages.
+- Reusable Upload Materials control for temporary PDF, DOCX and TXT extraction, with JPG, JPEG and PNG images sent to the configured vision-capable AI model.
 
 ## 4. How AI is used
 
@@ -63,7 +64,7 @@ Run the automated checks with `npm test`. The manual evidence table in [tests/te
 
 The shared composer accepts PDF, DOCX and TXT files up to 10 MB. Files are held in memory only, processed by the private `/api/upload` route, and are not written to `public/` or permanently stored. Extracted text is passed as context to the existing AI route for explanations, summaries, planners, quizzes, assignment help, exam preparation, coding help and career guidance.
 
-JPG, JPEG and PNG files are recognized but currently return a friendly unsupported-processing message because the existing text-only AI request format does not send image content to the configured provider. Uploaded code is treated as text and is never executed.
+JPG, JPEG and PNG files are held in memory and sent as provider-native image content for the Media study mode. The configured model must support image input. Uploaded code is treated as text and is never executed.
 
 ## 12. Known limitations
 
