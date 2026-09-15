@@ -1,13 +1,19 @@
 import 'dotenv/config';
 import express from 'express';
+import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SYSTEM_PROMPT, FEATURE_INSTRUCTIONS } from './prompts.js';
 import { validateInput, validateFeaturePayload } from './validation.js';
+import { MAX_UPLOAD_SIZE, extractUploadedText, getUploadMetadata, validateUploadedFile } from './upload-processing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = Number(process.env.PORT) || 3000;
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_UPLOAD_SIZE, files: 1 }
+});
 
 app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -15,6 +21,31 @@ app.use('/tests', express.static(path.join(__dirname, 'tests')));
 
 app.get('/api/health', (_request, response) => {
   response.json({ ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY) });
+});
+
+const uploadMiddleware = (request, response, next) => upload.single('file')(request, response, (error) => {
+  if (!error) return next();
+  if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+    return response.status(413).json({ error: 'This file is too large. Please choose a file under 10 MB.' });
+  }
+  return response.status(400).json({ error: 'The upload could not be received. Please try the file again.' });
+});
+
+app.post('/api/upload', uploadMiddleware, async (request, response) => {
+  const fileCheck = validateUploadedFile(request.file);
+  if (!fileCheck.valid) return response.status(400).json({ error: fileCheck.message });
+
+  try {
+    const text = await extractUploadedText(request.file, fileCheck.extension);
+    if (!text) {
+      return response.status(422).json({ error: 'I could not find readable text in that file. Please try a different document.' });
+    }
+
+    response.json({ file: getUploadMetadata(request.file, fileCheck.extension, text), text });
+  } catch (error) {
+    console.error('Upload processing:', error.message);
+    response.status(422).json({ error: 'I couldn\'t read this file. Please check that it is not corrupted and try again.' });
+  }
 });
 
 async function requestGemini(prompt, signal) {
@@ -57,7 +88,7 @@ async function requestOpenAI(prompt, signal) {
 }
 
 app.post('/api/chat', async (request, response) => {
-  const { message, feature = 'chat', context = '' } = request.body ?? {};
+  const { message, feature = 'chat', context = '', materialText = '', materialName = '' } = request.body ?? {};
   const messageCheck = validateInput(message);
   if (!messageCheck.valid) return response.status(400).json({ error: messageCheck.message });
   if (!Object.hasOwn(FEATURE_INSTRUCTIONS, feature)) return response.status(400).json({ error: 'That study mode is not available.' });
@@ -66,7 +97,8 @@ app.post('/api/chat', async (request, response) => {
     return response.status(503).json({ error: 'The AI service is not configured yet. Add OPENAI_API_KEY to your .env file, then restart StudyBuddy.' });
   }
 
-  const prompt = `${FEATURE_INSTRUCTIONS[feature]}\n\nStudent request:\n${messageCheck.value}${context ? `\n\nRelevant conversation context:\n${context}` : ''}`;
+  const materialContext = materialText ? `\n\nUploaded study material${materialName ? ` (${materialName})` : ''}:\n${String(materialText).slice(0, 50000)}\n\nUse the uploaded material as the primary source when the student refers to it. If the answer is not present there, say so clearly instead of inventing details.` : '';
+  const prompt = `${FEATURE_INSTRUCTIONS[feature]}\n\nStudent request:\n${messageCheck.value}${materialContext}${context ? `\n\nRelevant conversation context:\n${context}` : ''}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
 
@@ -92,7 +124,7 @@ app.post('/api/chat', async (request, response) => {
 });
 
 app.post('/api/feature', (request, response) => {
-  const { feature, data } = request.body ?? {};
+  const { feature, data, materialText = '', materialName = '' } = request.body ?? {};
   const check = validateFeaturePayload(feature, data);
   if (!check.valid) return response.status(400).json({ error: check.message });
 
@@ -104,7 +136,8 @@ app.post('/api/feature', (request, response) => {
     coding: `Analyse this ${data.language} code and explain it carefully. Problem description: ${data.question || 'No extra context provided.'}\n\nCode:\n${data.code}`,
     career: `Provide general career guidance for: ${data.career}. Include overview, skills, subjects, beginner projects, learning path and related careers.`
   };
-  response.json({ message: messages[feature] });
+  const materialContext = materialText ? `\n\nUploaded material${materialName ? ` (${materialName})` : ''}:\n${String(materialText).slice(0, 50000)}\n\nUse this material as the primary source. Do not invent information that is not supported by it.` : '';
+  response.json({ message: `${messages[feature]}${materialContext}` });
 });
 
 app.get('*', (_request, response) => response.sendFile(path.join(__dirname, 'public', 'index.html')));
