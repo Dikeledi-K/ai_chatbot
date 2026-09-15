@@ -3,7 +3,7 @@ import { applyTheme, getStoredTheme, persistTheme, resolveThemePreference } from
 import { generateConversationTitle, loadStoredConversations, normalizeConversation, saveConversations } from './chat-history.js';
 
 const state = { feature: 'chat', busy: false, quizState: null, history: [], conversations: [], activeConversationId: null, uploadMaterial: null };
-const featureNames = { chat: 'Study chat', explain: 'Explain a topic', summarize: 'Summarise notes', planner: 'Study planner', exam: 'Exam preparation', quiz: 'Quiz me', assignment: 'Assignment helper', coding: 'Coding Helper', career: 'Career Guidance' };
+const featureNames = { chat: 'Study chat', explain: 'Explain a topic', summarize: 'Summarise notes', planner: 'Study planner', exam: 'Exam preparation', quiz: 'Quiz me', assignment: 'Assignment helper', coding: 'Coding Helper', career: 'Career Guidance', pdf: 'PDF study', media: 'Media study' };
 const form = document.querySelector('#chat-form');
 const input = document.querySelector('#message-input');
 const messages = document.querySelector('#messages');
@@ -37,7 +37,9 @@ const welcomeMessages = {
   quiz: 'Choose Quiz me above to start a practice quiz one question at a time.',
   assignment: 'Share your assignment question or brief and I’ll help you understand the task and plan your own work.',
   coding: 'Paste your code and explain what you are trying to do. I’ll help you debug it and understand why.',
-  career: 'Tell me about a career you are interested in and I’ll suggest skills, subjects, projects, and learning steps.'
+  career: 'Tell me about a career you are interested in and I’ll suggest skills, subjects, projects, and learning steps.',
+  pdf: 'Upload a PDF, then ask me to explain, summarise, or find something in it.',
+  media: 'Upload an image of a diagram, chart, or page and I’ll help you study what is visible.'
 };
 
 function escapeHtml(value) {
@@ -108,9 +110,9 @@ async function uploadMaterial(file) {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'This file could not be processed.');
 
-    state.uploadMaterial = { ...result.file, text: result.text };
+    state.uploadMaterial = { ...result.file, text: result.text, media: result.media };
     uploadFileName.textContent = result.file.name;
-    uploadFileMeta.textContent = `${result.file.extension.toUpperCase().slice(1)} · ${formatFileSize(result.file.size)} · Text extracted`;
+    uploadFileMeta.textContent = `${result.file.extension.toUpperCase().slice(1)} · ${formatFileSize(result.file.size)} · ${result.file.isMedia ? 'Image ready' : 'Text extracted'}`;
     uploadFile.classList.remove('hidden');
     uploadActions.classList.remove('hidden');
     uploadDropzone.classList.add('hidden');
@@ -155,7 +157,9 @@ uploadActions?.addEventListener('click', (event) => {
 
   input.value = feature === 'summarize'
     ? 'Summarise the uploaded material into key topics, important concepts, definitions, main points, and a quick revision summary.'
-    : 'Explain the uploaded material in simple terms and help me understand the key ideas.';
+    : feature === 'pdf' ? 'Study this PDF and explain its key ideas, important details, and anything I should revise.'
+      : feature === 'media' ? 'Study this image with me. Describe what is visible and explain the important concepts.'
+        : 'Explain the uploaded material in simple terms and help me understand the key ideas.';
   input.focus();
 });
 
@@ -164,7 +168,7 @@ function selectFeature(feature) {
   document.querySelectorAll('.feature-card').forEach((card) => card.classList.toggle('active', card.dataset.feature === feature));
   document.querySelector('#mode-label').textContent = feature === 'chat' ? 'STUDY CHAT' : featureNames[feature].toUpperCase();
   document.querySelector('#mode-title').textContent = feature === 'chat' ? 'What are you working on?' : `${featureNames[feature]} with confidence.`;
-  input.placeholder = feature === 'summarize' ? 'Paste your notes here...' : feature === 'explain' ? 'What topic should we unpack?' : feature === 'planner' ? 'Subject, exam date, topics, and hours per week...' : feature === 'exam' ? 'Tell me what you need to revise before the exam...' : feature === 'coding' ? 'Paste your code and describe what you are trying to do...' : feature === 'career' ? 'Tell me a career you are interested in...' : 'Ask a question or paste your notes...';
+  input.placeholder = feature === 'summarize' ? 'Paste your notes here...' : feature === 'explain' ? 'What topic should we unpack?' : feature === 'planner' ? 'Subject, exam date, topics, and hours per week...' : feature === 'exam' ? 'Tell me what you need to revise before the exam...' : feature === 'coding' ? 'Paste your code and describe what you are trying to do...' : feature === 'career' ? 'Tell me a career you are interested in...' : feature === 'pdf' ? 'Ask a question about your PDF...' : feature === 'media' ? 'Ask about the uploaded image...' : 'Ask a question or paste your notes...';
   if (!state.history.length && messages) {
     renderMessagesFromHistory();
   }
@@ -405,7 +409,8 @@ async function sendMessage(message, feature = state.feature) {
         feature,
         context,
         materialText: state.uploadMaterial?.text || '',
-        materialName: state.uploadMaterial?.name || ''
+        materialName: state.uploadMaterial?.name || '',
+        materialMedia: state.uploadMaterial?.media || null
       })
     });
 
