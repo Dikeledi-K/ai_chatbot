@@ -1,4 +1,4 @@
-import { buildStudyCoachFeedback, calculateQuizScore, getFriendlyApiErrorMessage, createFallbackQuiz } from './studybuddy-logic.js';
+import { buildStudyCoachFeedback, calculateQuizScore, getFriendlyApiErrorMessage, createFallbackQuiz, normalizeQuizQuestions } from './studybuddy-logic.js';
 import { applyTheme, getStoredTheme, persistTheme, resolveThemePreference } from './theme.js';
 import { generateConversationTitle, loadStoredConversations, normalizeConversation, saveConversations } from './chat-history.js';
 
@@ -470,36 +470,64 @@ function renderQuizQuestion() {
   if (!state.quizState) return;
 
   const quiz = state.quizState;
-  const currentQuestion = quiz.questions[quiz.currentIndex];
-  if (!currentQuestion) return;
-
   const item = document.createElement('div');
   item.className = 'message assistant';
   item.innerHTML = `
     <div class="avatar">✦</div>
     <div class="bubble">
-      <div class="quiz-card">
-        <div class="question-label">Question ${quiz.currentIndex + 1} of ${quiz.questions.length}</div>
-        <h3>${escapeHtml(currentQuestion.concept || 'Quick check')}</h3>
-        <p>${escapeHtml(currentQuestion.question)}</p>
-        <div class="quiz-answers">
-          ${currentQuestion.options.map((option, optionIndex) => `<button class="answer-option" data-index="${optionIndex}" type="button">${escapeHtml(option)}</button>`).join('')}
-        </div>
+      <div class="quiz-card quiz-board">
+        <div class="question-label">Quiz · ${quiz.questions.length} questions</div>
+        <p class="quiz-instructions">Choose one answer for each question, then submit when you are ready.</p>
+        ${quiz.questions.map((question, questionIndex) => `
+          <section class="quiz-question" data-question-index="${questionIndex}">
+            <div class="question-label">Question ${questionIndex + 1} of ${quiz.questions.length}</div>
+            <h3>${escapeHtml(question.concept || 'Quick check')}</h3>
+            <p>${escapeHtml(question.question)}</p>
+            <div class="quiz-answers">
+              ${question.options.map((option, optionIndex) => `<button class="answer-option" data-question-index="${questionIndex}" data-index="${optionIndex}" type="button">${escapeHtml(option)}</button>`).join('')}
+            </div>
+            <p class="quiz-explanation" hidden></p>
+          </section>
+        `).join('')}
+        <button class="primary-action quiz-submit" type="button" disabled>Submit quiz <span>→</span></button>
       </div>
     </div>
   `;
 
+  const submitButton = item.querySelector('.quiz-submit');
   item.querySelectorAll('.answer-option').forEach((button) => {
     button.addEventListener('click', () => {
-      const value = Number(button.dataset.index);
-      quiz.answers[currentQuestion.id || `q${quiz.currentIndex + 1}`] = value;
-      if (quiz.currentIndex < quiz.questions.length - 1) {
-        quiz.currentIndex += 1;
-        renderQuizQuestion();
-      } else {
-        finishQuiz();
-      }
+      if (quiz.submitted) return;
+      const questionIndex = Number(button.dataset.questionIndex);
+      const question = quiz.questions[questionIndex];
+      const questionId = question.id || `q${questionIndex + 1}`;
+      quiz.answers[questionId] = Number(button.dataset.index);
+      item.querySelectorAll(`[data-question-index="${questionIndex}"]`).forEach((option) => option.classList.remove('selected'));
+      button.classList.add('selected');
+      submitButton.disabled = Object.keys(quiz.answers).length < quiz.questions.length;
     });
+  });
+
+  submitButton.addEventListener('click', () => {
+    if (submitButton.disabled || quiz.submitted) return;
+    quiz.submitted = true;
+    item.querySelectorAll('.answer-option').forEach((button) => {
+      const questionIndex = Number(button.dataset.questionIndex);
+      const question = quiz.questions[questionIndex];
+      const selectedIndex = quiz.answers[question.id || `q${questionIndex + 1}`];
+      const optionIndex = Number(button.dataset.index);
+      button.disabled = true;
+      if (optionIndex === Number(question.correctAnswerIndex)) button.classList.add('correct');
+      if (optionIndex === selectedIndex && selectedIndex !== Number(question.correctAnswerIndex)) button.classList.add('incorrect');
+    });
+    quiz.questions.forEach((question, questionIndex) => {
+      const explanation = item.querySelector(`[data-question-index="${questionIndex}"] .quiz-explanation`);
+      if (!explanation) return;
+      explanation.textContent = question.explanation || 'Review the concept and compare your reasoning with the correct answer.';
+      explanation.hidden = false;
+    });
+    submitButton.remove();
+    finishQuiz();
   });
 
   messages.append(item);
@@ -537,7 +565,10 @@ function finishQuiz() {
   `;
 
   summary.querySelector('[data-action="retry-quiz"]').addEventListener('click', () => {
-    state.quizState = { ...state.quizState, currentIndex: 0, answers: {} };
+    const quizBoard = messages.querySelector('.quiz-board')?.closest('.message');
+    quizBoard?.remove();
+    summary.remove();
+    state.quizState = { ...state.quizState, currentIndex: 0, answers: {}, submitted: false };
     renderQuizQuestion();
   });
 
@@ -579,7 +610,8 @@ async function startQuiz(topic, difficulty = 'easy', focus = '', questionCount =
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Quiz generation failed.');
-    questions = result.questions;
+    questions = normalizeQuizQuestions(result.questions, questionCount);
+    if (questions.length < questionCount) throw new Error('The quiz contained repeated questions.');
   } catch {
     questions = createFallbackQuiz(topic, difficulty, focus, questionCount, materialText);
   } finally {
@@ -587,7 +619,7 @@ async function startQuiz(topic, difficulty = 'easy', focus = '', questionCount =
   }
 
   intro.remove();
-  state.quizState = { topic, difficulty, focus, questionCount, materialText, questions, currentIndex: 0, answers: {} };
+  state.quizState = { topic, difficulty, focus, questionCount, materialText, questions, currentIndex: 0, answers: {}, submitted: false };
   renderQuizQuestion();
 }
 
