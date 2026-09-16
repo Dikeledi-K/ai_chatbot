@@ -582,6 +582,8 @@ async function startQuiz(topic, difficulty = 'easy', focus = '', questionCount =
     questions = result.questions;
   } catch {
     questions = createFallbackQuiz(topic, difficulty, focus, questionCount, materialText);
+  } finally {
+    clearInterval(analysisTimer);
   }
 
   intro.remove();
