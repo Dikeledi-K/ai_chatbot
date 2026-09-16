@@ -554,9 +554,21 @@ async function startQuiz(topic, difficulty = 'easy', focus = '', questionCount =
   const materialText = state.uploadMaterial?.text || '';
   const intro = document.createElement('div');
   intro.className = 'message assistant';
-  intro.innerHTML = `<div class="avatar">✦</div><div class="bubble"><p>I’m creating a ${escapeHtml(topic)} quiz at a ${escapeHtml(difficulty)} level${materialText ? ' from your uploaded document' : ''}...</p></div>`;
+  intro.innerHTML = `<div class="avatar">✦</div><div class="bubble"><div class="analysis-state" role="status" aria-live="polite"><div class="analysis-state__visual"><span class="analysis-orbit analysis-orbit--one"></span><span class="analysis-orbit analysis-orbit--two"></span><span class="analysis-core">✦</span></div><div class="analysis-state__copy"><strong>StudyBuddy is thinking</strong><span class="analysis-state__detail">Reading your study material...</span><div class="analysis-progress"><span></span></div><small>Building a ${escapeHtml(difficulty)} quiz${materialText ? ' from your uploaded document' : ''}</small></div></div></div>`;
   messages.append(intro);
   messages.scrollTop = messages.scrollHeight;
+
+  const analysisDetails = materialText
+    ? ['Reading your study material...', 'Finding the key concepts...', 'Writing useful questions...', 'Checking answer quality...']
+    : ['Understanding the topic...', 'Writing useful questions...', 'Adding plausible answer choices...', 'Checking answer quality...'];
+  const analysisDetail = intro.querySelector('.analysis-state__detail');
+  const analysisProgress = intro.querySelector('.analysis-progress span');
+  let analysisStep = 0;
+  const analysisTimer = setInterval(() => {
+    analysisStep = (analysisStep + 1) % analysisDetails.length;
+    if (analysisDetail) analysisDetail.textContent = analysisDetails[analysisStep];
+    if (analysisProgress) analysisProgress.style.width = `${Math.min(88, 22 + analysisStep * 22)}%`;
+  }, 1200);
 
   let questions;
   try {
