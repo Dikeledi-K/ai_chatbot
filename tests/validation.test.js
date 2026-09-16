@@ -61,6 +61,11 @@ test('changes fallback Python questions for easy difficulty', () => {
   assert.equal(easy.concept, 'List basics');
   assert.equal(easy.difficulty, 'easy');
 });
+test('does not repeat easy Python data-structures questions', () => {
+  const questions = createFallbackQuiz('Python data structures', 'easy', '', 5);
+  assert.equal(questions.length, 5);
+  assert.equal(new Set(questions.map((question) => question.question)).size, 5);
+});
 test('creates realistic health questions', () => {
   const questions = createFallbackQuiz('Health and nutrition', 'medium', '', 4);
   assert.ok(questions.some((question) => question.concept === 'Evidence and health claims'));
