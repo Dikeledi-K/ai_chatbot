@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SYSTEM_PROMPT, FEATURE_INSTRUCTIONS } from './prompts.js';
 import { validateInput, validateFeaturePayload } from './validation.js';
-import { buildQuizPrompt, parseQuizResponse } from './public/studybuddy-logic.js';
+import { buildQuizPrompt, normalizeQuizQuestions, parseQuizResponse } from './public/studybuddy-logic.js';
 import { MAX_UPLOAD_SIZE, extractUploadedText, getUploadMetadata, validateUploadedFile } from './upload-processing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -156,10 +156,9 @@ app.post('/api/quiz', async (request, response) => {
     const rawAnswer = process.env.GEMINI_API_KEY
       ? await requestGemini(prompt, controller.signal)
       : await requestOpenAI(prompt, controller.signal);
-    const questions = parseQuizResponse(rawAnswer)
+    const questions = normalizeQuizQuestions(parseQuizResponse(rawAnswer)
       .filter((question) => question && typeof question.question === 'string' && Array.isArray(question.options) && question.options.length === 4 && Number.isInteger(Number(question.correctAnswerIndex)))
-      .slice(0, Number(questionCount))
-      .map((question, index) => ({ ...question, id: question.id || `ai-${index + 1}`, correctAnswerIndex: Number(question.correctAnswerIndex), difficulty }));
+      .map((question, index) => ({ ...question, id: question.id || `ai-${index + 1}`, correctAnswerIndex: Number(question.correctAnswerIndex), difficulty })), questionCount);
     if (questions.length < Number(questionCount)) throw new Error('The AI returned an incomplete quiz.');
     response.json({ questions });
   } catch (error) {
