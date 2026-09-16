@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateInput, validateFeaturePayload } from '../validation.js';
-import { calculateQuizScore, buildStudyCoachFeedback, createFallbackQuiz } from '../public/studybuddy-logic.js';
+import { calculateQuizScore, buildStudyCoachFeedback, createFallbackQuiz, normalizeQuizQuestions } from '../public/studybuddy-logic.js';
 
 test('rejects empty input', () => assert.equal(validateInput('   ').valid, false));
 test('rejects input longer than the limit', () => assert.equal(validateInput('a'.repeat(6001)).valid, false));
@@ -77,6 +77,17 @@ test('creates realistic agriculture questions', () => {
   assert.ok(questions.some((question) => question.concept === 'Crop rotation'));
   assert.ok(questions.some((question) => question.question.includes('irrigation')));
   assert.ok(questions.every((question) => question.options.length === 4));
+});
+test('removes repeated quiz questions and repeated option sets', () => {
+  const questions = normalizeQuizQuestions([
+    { question: ' What is a list? ', options: ['A', 'B', 'C', 'D'], correctAnswerIndex: 0 },
+    { question: 'What is a list?', options: ['A', 'B', 'C', 'D'], correctAnswerIndex: 0 },
+    { question: 'What is a tuple?', options: ['E', 'F', 'G', 'H'], correctAnswerIndex: 1 },
+    { question: 'A differently worded question', options: ['A', 'B', 'C', 'D'], correctAnswerIndex: 2 }
+  ], 4);
+
+  assert.equal(questions.length, 2);
+  assert.deepEqual(questions.map((question) => question.question), ['What is a list?', 'What is a tuple?']);
 });
 test('accepts supported coding inputs', () => assert.equal(validateFeaturePayload('coding', { language: 'python', code: 'print(1 + 1)' }).valid, true));
 test('validates unsupported coding languages', () => assert.equal(validateFeaturePayload('coding', { language: 'ruby', code: 'puts 1' }).valid, false));
