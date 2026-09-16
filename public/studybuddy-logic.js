@@ -238,6 +238,50 @@ export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', 
         'A set operation, because dictionaries are unordered sets.'
       ],
       explanation: 'A dictionary maps keys to values, so the key is used for lookup.'
+    },
+    {
+      concept: 'Tuples',
+      question: 'Which statement best describes a Python tuple?',
+      correct: 'It is an ordered collection that cannot be changed in place after creation.',
+      wrongs: [
+        'It is an unordered collection that automatically removes duplicates.',
+        'It is a key-value collection where every item needs a label.',
+        'It is an ordered collection whose items can always be replaced.'
+      ],
+      explanation: 'Tuples preserve order but are immutable, so their items cannot be changed in place.'
+    },
+    {
+      concept: 'Indexing',
+      question: 'What value does values[0] return when values = ["red", "green", "blue"]?',
+      correct: '"red", because Python uses zero-based indexing.',
+      wrongs: [
+        '"green", because the first position is numbered one.',
+        '"blue", because index zero means the last item.',
+        'The full list, because zero selects every item.'
+      ],
+      explanation: 'Python sequences start at index zero, so values[0] refers to the first item.'
+    },
+    {
+      concept: 'Membership testing',
+      question: 'Which expression checks whether "math" appears in subjects?',
+      correct: '"math" in subjects',
+      wrongs: [
+        'subjects contains "math"',
+        'subjects["math"]',
+        'find("math", subjects)'
+      ],
+      explanation: 'The in operator tests whether a value is present in a sequence or collection.'
+    },
+    {
+      concept: 'Nested data',
+      question: 'If scores = [[80, 90], [70, 85]], what does scores[1][0] return?',
+      correct: '70, the first value in the second inner list.',
+      wrongs: [
+        '80, the first value in the first inner list.',
+        '85, the last value in the second inner list.',
+        'The complete second inner list, [70, 85].'
+      ],
+      explanation: 'The first index selects the second inner list and the second index selects its first value.'
     }
   ];
   const difficultPythonDataStructureQuestions = [
@@ -551,4 +595,26 @@ export function parseQuizResponse(rawResponse) {
   }
 
   return [];
+}
+
+export function normalizeQuizQuestions(questions = [], questionCount = 5) {
+  const seenQuestions = new Set();
+  const seenOptionSets = new Set();
+
+  return questions
+    .filter((question) => question && typeof question.question === 'string' && Array.isArray(question.options))
+    .map((question) => ({
+      ...question,
+      question: question.question.trim(),
+      options: question.options.map((option) => String(option).trim())
+    }))
+    .filter((question) => {
+      const questionKey = question.question.toLowerCase().replace(/\s+/g, ' ');
+      const optionKey = question.options.map((option) => option.toLowerCase()).sort().join('|');
+      if (!questionKey || seenQuestions.has(questionKey) || seenOptionSets.has(optionKey)) return false;
+      seenQuestions.add(questionKey);
+      seenOptionSets.add(optionKey);
+      return true;
+    })
+    .slice(0, Number(questionCount));
 }
