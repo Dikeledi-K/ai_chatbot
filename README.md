@@ -1,103 +1,191 @@
 # StudyBuddy AI
 
-StudyBuddy AI is a beginner-friendly AI study assistant built for the Week 1 Sprint 1 project, **AI Foundations & Chatbot Development**.
+StudyBuddy AI is a beginner-friendly study assistant for students who want clearer explanations, smarter revision support, and more confidence while learning.
 
-## 1. Problem statement
+## Overview
 
-Students often need quick explanations, revision structure and feedback, but generic AI answers can be confusing, overconfident or encourage students to skip their own learning.
+This project combines a browser-based interface with a Node.js Express backend. The app supports normal chat, topic explanations, summaries, study planning, exam prep, quizzes, assignment guidance, coding help, and career guidance. It uses a responsible-AI approach and validates requests before sending them to the AI provider.
 
-## 2. Solution and target users
+## Features
 
-StudyBuddy gives students a focused learning companion for explanations, note summaries, study planning, practice quizzes and assignment planning. It is designed for secondary and tertiary students, with simple language and clear responsible-AI boundaries.
+- Beginner-friendly explanations for a topic
+- Summaries of pasted notes with clean separation of source content and extra context
+- Study planner for subject, exam date, topics, and available hours
+- Exam-prep support with focus and revision strategy
+- Quiz generation with difficulty settings and optional uploaded material
+- Assignment help that breaks down tasks without doing the work for the student
+- Coding explanations and debugging guidance
+- Career guidance with general learning suggestions
+- Theme switching and saved chat history in the browser
+- Upload support for PDF, DOCX, TXT, and common image files for study material extraction
+- Server-side validation, timeout handling, and user-friendly API errors
 
-## 3. Features
+## Technology stack
 
-- Explain a topic in beginner-friendly steps.
-- Summarise pasted notes while separating AI-added context.
-- Build a realistic study plan from subject, exam date, topics and available time.
-- Generate a quiz that asks one question at a time.
-- Break down an assignment without writing submission-ready work.
-- Normal chat, loading states, validation, timeouts and friendly API errors.
-- Unified Quiz flow with topic, question count, difficulty, focus area and optional PDF study material.
-- Reusable Upload Materials control for temporary PDF, DOCX and TXT extraction.
+- HTML, CSS, and browser JavaScript
+- Node.js and Express
+- dotenv for environment variables
+- PDF and DOCX parsing for uploaded material
+- OCR support for image uploads with Tesseract
+- Gemini and OpenAI as AI providers
+- Node.js built-in test runner for project verification
 
-## 4. How AI is used
+## Prerequisites
 
-The app uses an existing Gemini or OpenAI chat model through a server-side API route. It does **not** train a model. The browser sends a validated request to Express, which adds the system prompt and feature instruction before calling the model. The API key never reaches the browser. Gemini is selected when `GEMINI_API_KEY` is configured; OpenAI is supported as a fallback.
+- Node.js 18 or newer
+- npm
+- A valid AI API key in the environment
 
-## 5. Prompt engineering approach
+## Setup
 
-`prompts.js` uses a strong role prompt plus focused instructions for each feature. The prompt asks for simple language, step-by-step explanations, clarifying questions, uncertainty statements, faithful summaries, learning-focused assignment help and refusal of cheating requests. Low temperature is used to reduce unnecessary variation.
-
-## 6. Responsible AI approach
-
-The interface visibly warns: “StudyBuddy AI can make mistakes. Always verify important information and use AI as a learning assistant, not a replacement for your teacher.” The system prompt says not to invent facts, to acknowledge missing information, to encourage trusted-source verification and to redirect cheating requests toward legitimate revision help.
-
-## 7. Technology
-
-HTML, CSS and browser JavaScript provide the responsive interface. Node.js and Express provide the API boundary. `dotenv` loads local environment variables. Gemini and OpenAI provide the AI model options. Node’s built-in test runner covers validation.
-
-## 8. Installation
-
-Prerequisite: Node.js 18 or newer.
+From the project root:
 
 ```bash
 npm install
 copy .env.example .env
 ```
 
-Open `.env` and set `GEMINI_API_KEY` and `GEMINI_MODEL`, or configure `OPENAI_API_KEY` and `OPENAI_MODEL` as a fallback. You may optionally change `PORT`. Never commit `.env`.
+On Linux/macOS, use:
 
-## 9. Run
+```bash
+cp .env.example .env
+```
+
+Then open the `.env` file and add your API configuration. Example:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.0-flash
+
+# Optional OpenAI fallback
+# OPENAI_API_KEY=your_openai_api_key_here
+# OPENAI_MODEL=gpt-4o-mini
+
+PORT=3000
+```
+
+You can run the app with Gemini or OpenAI. If neither key is configured, the app will return a 503 error when AI features are used.
+
+## Run the project
+
+Start the app in normal mode:
 
 ```bash
 npm start
 ```
 
-Open http://localhost:3000. During development, `npm run dev` restarts the server when files change.
+Start the app with file watching during development:
 
-## 10. Testing approach
+```bash
+npm run dev
+```
 
-Run the automated checks with `npm test`. The manual evidence table in [tests/test-cases.md](tests/test-cases.md) contains more than 20 cases across normal, difficult, ambiguous, unknown, invalid, API-error, planning, summarisation, quiz, assignment and cheating scenarios. Replace “To record” with the observed result during the team test session and attach screenshots to the presentation.
+Run the app directly with Node:
 
-## 11. Upload materials
+```bash
+node server.js
+```
 
-The Quiz modal accepts an optional PDF alongside the topic and question count. The shared composer accepts DOCX and TXT files up to 10 MB. Uploaded files are held in memory only, processed by the private `/api/upload` route, and are not written to `public/` or permanently stored. Extracted text is used as source material for quiz questions. Uploaded code is treated as text and is never executed.
+Once running, open:
 
-## 12. Known limitations
+```text
+http://localhost:3000
+```
 
-- A valid OpenAI API key and internet connection are needed for live answers.
-- The current quiz score is kept in the conversation rather than persisted in a database.
-- There is no login, server-side history or teacher-managed knowledge base.
-- AI output still requires human verification.
+Health check endpoint:
 
-## 13. Future improvements
+```text
+http://localhost:3000/api/health
+```
 
-Add streamed responses, saved study plans, a trusted course-material context option, richer quiz score tracking, accessibility audits and automated API contract tests.
+## Testing
 
-## 14. Team contributions
+Run the automated test suite:
 
-| Member | Role | Contribution |
-|---|---|---|
-| 1 | Project coordination and integration | Own the sprint board, merge work, run demos and keep the acceptance criteria visible. |
-| 2 | Prompt engineering and chatbot behaviour | Test prompt variations, refine feature instructions and document expected AI behaviour. |
-| 3 | Frontend/UI | Build the responsive dashboard, interaction states and accessible controls. |
-| 4 | AI features and backend/API integration | Maintain the Express route, environment variables, timeout and API error handling. |
-| 5 | Testing, responsible AI and documentation | Execute the test table, review safety behaviour, capture evidence and maintain this README. |
+```bash
+npm test
+```
 
-Demonstrate teamwork by showing the shared task board, short commit history, peer review notes, test evidence and a presentation where each member explains their contribution.
+The project includes tests for validation, upload handling, quiz generation, theme handling, and chat history normalization.
 
-## 15. Demonstration flow
+## Project structure
 
-1. Introduce the student problem and the responsible-AI notice.
-2. Ask “Explain photosynthesis to me like I am a beginner” and point out the simple structure.
-3. Open **Summarise notes**, paste a short paragraph, and show faithful bullet points.
-4. Open **Study planner**, enter a subject, date, topics and hours, and show the generated schedule.
-5. Open **Quiz me**, answer one question, and show feedback in the continuing chat.
-6. Open **Assignment helper** and show task breakdown and an outline rather than a completed submission.
-7. Ask for exam answers to demonstrate the refusal and legitimate study redirect.
-8. Show `npm test` and the manual test table as evidence for working features and problem solving.
+```text
+.
+├── public/                  # Frontend HTML, CSS, and JavaScript
+├── tests/                  # Automated project tests
+├── .env.example            # Example environment file
+├── package.json            # Scripts and dependencies
+├── prompts.js              # AI system and feature prompts
+├── server.js               # Express server and routes
+├── upload-processing.js    # File validation and text extraction
+├── validation.js           # Request validation helpers
+├── README.md               # Project documentation
+└── notes.txt               # Extra notes or project context
+```
 
-## 16. Scope note
+## API routes
 
-This project demonstrates prompt engineering, responsible AI, validation, testing and API integration. It is a learning prototype, not a guarantee of factual accuracy.
+The server exposes these routes:
+
+- `GET /api/health` – checks whether the app and AI config are available
+- `POST /api/upload` – processes uploaded study material and extracts text
+- `POST /api/chat` – sends a user message to the selected AI provider
+- `POST /api/quiz` – generates a quiz using the selected difficulty and source material
+- `POST /api/feature` – prepares feature-specific structured study prompts
+
+## Upload materials
+
+Uploaded files are processed in memory only and are not stored permanently. Supported content includes:
+
+- PDF
+- DOCX
+- TXT
+- PNG
+- JPG/JPEG
+- WEBP
+
+The upload route validates file type and size, extracts readable text, and sends it to the AI as context when needed.
+
+## Responsible AI and limitations
+
+- AI output should be checked by a student or teacher before being treated as fact.
+- The app refuses cheating or exam-answer requests and redirects the student toward legitimate study help.
+- The app does not persist user accounts or a database for study history.
+- Browser local storage is used only for chat history and theme preferences.
+- AI features depend on internet access and a valid API key.
+
+## Future improvements
+
+- Add richer persistence and database-backed history
+- Add streamed AI responses
+- Improve accessibility and UX testing
+- Expand quiz analytics and course content integration
+- Add more feature-based API contract tests
+
+## Team contribution example
+
+This project was designed for collaborative work and demonstration. A typical team workflow includes:
+
+1. Prompt engineering and responsible-AI behavior
+2. Frontend design and UI interaction flow
+3. Backend API and validation work
+4. Upload processing and feature logic
+5. Testing and documentation review
+
+## Demonstration flow
+
+A suggested demonstration is:
+
+1. Open the app and explain the responsible-AI notice.
+2. Ask the app to explain a topic in beginner-friendly language.
+3. Use the summary feature with pasted notes.
+4. Create a study plan with subject, date, topics, and weekly hours.
+5. Generate a quiz and answer a question.
+6. Use the assignment helper to break down a task without completing it.
+7. Ask for exam answers and show the app redirects to legitimate learning support.
+8. Run `npm test` to show the project is validated.
+
+## Scope note
+
+This project demonstrates prompt engineering, frontend interaction design, file processing, backend validation, and AI integration. It is a learning-focused prototype and not a guarantee of factual correctness.
