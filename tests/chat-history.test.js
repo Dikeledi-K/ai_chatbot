@@ -28,3 +28,22 @@ test('returns an empty array when storage contains invalid data', () => {
   const parsed = loadStoredConversations('not-json');
   assert.deepEqual(parsed, []);
 });
+
+test('returns an empty array when localStorage is blocked', () => {
+  const previousLocalStorage = global.localStorage;
+
+  global.localStorage = {
+    getItem() {
+      throw new Error('Storage blocked');
+    },
+    setItem() {
+      throw new Error('Storage blocked');
+    }
+  };
+
+  try {
+    assert.deepEqual(loadStoredConversations(), []);
+  } finally {
+    global.localStorage = previousLocalStorage;
+  }
+});

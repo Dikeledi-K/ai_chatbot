@@ -52,7 +52,15 @@ export function normalizeConversation(conversation) {
   };
 }
 
-export function loadStoredConversations(rawValue = localStorage.getItem(STORAGE_KEY)) {
+export function loadStoredConversations(rawValue) {
+  if (rawValue === undefined) {
+    try {
+      rawValue = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return [];
+    }
+  }
+
   const parsed = safeJsonParse(rawValue);
   if (!Array.isArray(parsed)) {
     return [];
