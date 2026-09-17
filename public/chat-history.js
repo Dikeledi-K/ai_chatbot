@@ -1,5 +1,7 @@
+// Store and restore saved chat history in local storage with a small safety layer.
 const STORAGE_KEY = 'studybuddy-chat-history';
 
+// Safely parses saved history values and falls back to an empty list on malformed JSON.
 function safeJsonParse(value) {
   if (typeof value !== 'string' || value.trim() === '') {
     return [];
@@ -12,6 +14,7 @@ function safeJsonParse(value) {
   }
 }
 
+// Creates a short, readable title from the first user message in a conversation.
 export function generateConversationTitle(input) {
   const normalized = String(input ?? '').trim();
   if (!normalized) {
@@ -27,6 +30,7 @@ export function generateConversationTitle(input) {
   return words.slice(0, 7).join(' ');
 }
 
+// Normalises saved chat objects so history is consistent before saving and rendering.
 export function normalizeConversation(conversation) {
   if (!conversation || typeof conversation !== 'object') {
     return null;
@@ -52,6 +56,7 @@ export function normalizeConversation(conversation) {
   };
 }
 
+// Loads saved chat history from local storage and sorts it by most recent update.
 export function loadStoredConversations(rawValue) {
   if (rawValue === undefined) {
     try {
@@ -74,6 +79,7 @@ export function loadStoredConversations(rawValue) {
   return normalized;
 }
 
+// Saves the current conversation list to local storage using a normalised, safe format.
 export function saveConversations(conversations) {
   try {
     const normalized = (Array.isArray(conversations) ? conversations : [])

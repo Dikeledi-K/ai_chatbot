@@ -1,3 +1,4 @@
+// Handles temporary file validation and text extraction for uploaded study materials.
 import path from 'node:path';
 import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
@@ -16,10 +17,12 @@ const supportedTypes = new Map([
   ['.webp', 'image/webp']
 ]);
 
+// Normalises a file name to the lowercase extension used throughout the upload pipeline.
 export function getFileExtension(filename = '') {
   return path.extname(filename).toLowerCase();
 }
 
+// Checks that a file is present, within the size limit, and matches a supported document type.
 export function validateUploadedFile(file) {
   if (!file || !Buffer.isBuffer(file.buffer)) {
     return { valid: false, message: 'Please choose a file to upload.' };
@@ -44,18 +47,22 @@ export function validateUploadedFile(file) {
   return { valid: true, extension, mimeType: expectedType };
 }
 
+// Detects DOCX files by checking for the ZIP header used in OOXML documents.
 function hasZipSignature(buffer) {
   return buffer.subarray(0, 2).toString('hex') === '504b';
 }
 
+// Detects PDFs by checking for the standard header signature at the start of the file.
 function hasPdfSignature(buffer) {
   return buffer.subarray(0, 5).toString() === '%PDF-';
 }
 
+// Trims extracted file text so uploads stay within the app's size budget.
 function limitText(text) {
   return String(text || '').replace(/\u0000/g, '').trim().slice(0, MAX_EXTRACTED_TEXT);
 }
 
+// Reads text from uploaded files so the app can use the material as study context.
 export async function extractUploadedText(file, extension) {
   if (extension === '.txt') {
     return limitText(file.buffer.toString('utf8'));
@@ -96,6 +103,7 @@ export async function extractUploadedText(file, extension) {
   throw new Error('That file type is not supported. Please upload a PDF, DOCX, TXT, or image file.');
 }
 
+// Builds the upload summary sent back to the client after file extraction succeeds.
 export function getUploadMetadata(file, extension, text) {
   return {
     name: path.basename(file.originalname).replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_'),
