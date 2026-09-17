@@ -43,10 +43,12 @@ const welcomeMessages = {
   career: 'Tell me about a career you are interested in and I’ll suggest skills, subjects, projects, and learning steps.'
 };
 
+// Escapes user content so text appears safely inside HTML-rendered chat bubbles.
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character]);
 }
 
+// Converts markdown-like AI replies into safe HTML for display in the message feed.
 function formatAnswer(value) {
   return escapeHtml(value)
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -56,6 +58,7 @@ function formatAnswer(value) {
     .replace(/\n/g, '<br>');
 }
 
+// Adds a message bubble to the chat window and returns the created DOM element.
 function addMessage(content, role = 'user', loading = false) {
   const item = document.createElement('div');
   item.className = `message ${role}${loading ? ' loading-message' : ''}`;
@@ -67,6 +70,7 @@ function addMessage(content, role = 'user', loading = false) {
   return item;
 }
 
+// Updates the send button, input state, and status text while the app waits for a response.
 function setBusy(value) {
   state.busy = value;
   sendButton.disabled = value;
@@ -75,18 +79,21 @@ function setBusy(value) {
   document.querySelector('.status-dot').classList.toggle('working', value);
 }
 
+// Formats uploaded file sizes into readable units such as KB or MB.
 function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Shows or clears the upload validation message near the file picker.
 function setUploadError(message = '') {
   if (!uploadError) return;
   uploadError.textContent = message;
   uploadError.classList.toggle('hidden', !message);
 }
 
+// Clears the current uploaded study material and resets the upload UI state.
 function clearUpload() {
   state.uploadMaterial = null;
   if (materialFile) materialFile.value = '';
@@ -97,6 +104,7 @@ function clearUpload() {
   if (uploadStatus) uploadStatus.textContent = 'Optional';
 }
 
+// Sends a selected file to the server, extracts its readable text, and stores it for later use.
 async function uploadMaterial(file) {
   if (!file) return;
 
@@ -173,6 +181,7 @@ uploadActions?.addEventListener('click', (event) => {
   input.focus();
 });
 
+// Switches the active study mode and updates the visible interface for that feature.
 function selectFeature(feature) {
   const previousFeature = state.feature;
   if (feature !== previousFeature) {
@@ -190,14 +199,17 @@ function selectFeature(feature) {
   }
 }
 
+// Builds a compact recent chat summary that can be sent to the AI as conversation context.
 function conversationContext() {
   return state.history.slice(-12).map((entry) => `${entry.role === 'user' ? 'Student' : 'StudyBuddy'}: ${entry.content}`).join('\n\n').slice(-12000);
 }
 
+// Returns the currently active saved conversation object or null if none is selected.
 function getCurrentConversation() {
   return state.conversations.find((conversation) => conversation.id === state.activeConversationId) || null;
 }
 
+// Renders the active conversation history into the message panel for the current view.
 function renderMessagesFromHistory() {
   messages.innerHTML = '';
   if (!state.history.length) {
@@ -212,6 +224,7 @@ function renderMessagesFromHistory() {
   state.history.forEach((entry) => addMessage(entry.content, entry.role));
 }
 
+// Syncs the in-memory conversation state with the current chat history so it can be saved.
 function updateConversationSnapshot() {
   if (!state.activeConversationId) {
     return;
@@ -232,6 +245,7 @@ function updateConversationSnapshot() {
   }
 }
 
+// Saves the current conversation list in a normalised form and refreshes the sidebar list.
 function persistConversationState() {
   updateConversationSnapshot();
 
@@ -245,6 +259,7 @@ function persistConversationState() {
   renderHistoryList();
 }
 
+// Renders the saved conversation list with search filtering and current-selection styling.
 function renderHistoryList() {
   if (!historyList) return;
 
@@ -282,6 +297,7 @@ function renderHistoryList() {
   }).join('');
 }
 
+// Starts a fresh chat and resets the active conversation state without losing saved history.
 function createNewConversation() {
   const currentConversation = getCurrentConversation();
   if (currentConversation && state.history.length) {
@@ -314,6 +330,7 @@ function createNewConversation() {
   input.focus();
 }
 
+// Opens a saved conversation from the sidebar and restores its messages and feature mode.
 function openConversation(conversationId) {
   const conversation = state.conversations.find((item) => item.id === conversationId);
   if (!conversation) return;
@@ -329,6 +346,7 @@ function openConversation(conversationId) {
   closeSidebarOnMobile();
 }
 
+// Deletes a saved conversation after confirmation and updates the UI state.
 function deleteConversation(conversationId) {
   const conversation = state.conversations.find((item) => item.id === conversationId);
   if (!conversation) return;
@@ -349,6 +367,7 @@ function deleteConversation(conversationId) {
   renderHistoryList();
 }
 
+// Clears every saved conversation after confirmation and resets the chat view.
 function clearAllHistory() {
   if (!state.conversations.length) return;
 
@@ -364,6 +383,7 @@ function clearAllHistory() {
   renderHistoryList();
 }
 
+// Closes the history sidebar on small screens after a chat is opened or cleared.
 function closeSidebarOnMobile() {
   if (!historySidebar) return;
   historySidebar.classList.remove('open');
@@ -371,6 +391,7 @@ function closeSidebarOnMobile() {
   if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'false');
 }
 
+// Toggles the visible state of the history sidebar across mobile and desktop layouts.
 function toggleSidebar() {
   if (!historySidebar) return;
   const isOpen = window.innerWidth > 900
@@ -381,6 +402,7 @@ function toggleSidebar() {
   if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', String(isOpen));
 }
 
+// Sends a user message to the backend, handles success or failure states, and stores the result in history.
 async function sendMessage(message, feature = state.feature) {
   if (state.busy || !message.trim()) return;
 
@@ -457,6 +479,7 @@ async function sendMessage(message, feature = state.feature) {
   }
 }
 
+// Restores saved chat history from storage and chooses the newest conversation to display.
 function initializeHistory() {
   const stored = loadStoredConversations();
   state.conversations = stored;
@@ -476,6 +499,7 @@ function initializeHistory() {
   renderHistoryList();
 }
 
+// Renders the active question set for the current quiz so the learner can answer each item.
 function renderQuizQuestion() {
   if (!state.quizState) return;
 
@@ -544,6 +568,7 @@ function renderQuizQuestion() {
   messages.scrollTop = messages.scrollHeight;
 }
 
+// Calculates the final score and summarises strengths, weak areas, and next study steps.
 function finishQuiz() {
   if (!state.quizState) return;
   const { score, strengths, weaknesses, recommendations, positivity } = buildStudyCoachFeedback(state.quizState.questions, state.quizState.answers);
@@ -591,6 +616,7 @@ function finishQuiz() {
   messages.scrollTop = messages.scrollHeight;
 }
 
+// Starts a quiz request, shows an analysis state, and falls back to a local question set if needed.
 async function startQuiz(topic, difficulty = 'easy', focus = '', questionCount = 5) {
   const materialText = state.uploadMaterial?.text || '';
   const intro = document.createElement('div');
@@ -689,6 +715,7 @@ document.querySelector('#clear-chat').addEventListener('click', () => {
 const modal = document.querySelector('#feature-modal');
 const modalForm = document.querySelector('#feature-form');
 
+// Opens the modal that collects the fields for a selected feature such as planner or assignment help.
 function openFeatureModal(feature) {
   const labels = {
     planner: ['STUDY PLANNER', 'Build a plan that fits your week.'],
@@ -723,6 +750,7 @@ function openFeatureModal(feature) {
   modalForm.querySelector('input, textarea, select').focus();
 }
 
+// Closes the active feature modal and clears the current submission state.
 function closeModal() {
   modal.classList.add('hidden');
 }
@@ -770,6 +798,7 @@ modalForm.addEventListener('submit', async (event) => {
   }
 });
 
+// Syncs the theme button's icon and label to the current application theme.
 function updateThemeToggle(theme) {
   if (!themeToggle) return;
 
@@ -783,6 +812,7 @@ function updateThemeToggle(theme) {
   if (label) label.textContent = isDark ? 'Light mode' : 'Dark mode';
 }
 
+// Reads the saved or system theme preference and applies it when the page loads.
 function initializeTheme() {
   const savedTheme = getStoredTheme();
   const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
