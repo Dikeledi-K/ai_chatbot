@@ -844,6 +844,7 @@ document.addEventListener('click', (event) => {
 window.addEventListener('DOMContentLoaded', () => {
   selectFeature('chat');
   initializeTheme();
+  closeSidebarOnMobile();
   initializeHistory();
 });
 
