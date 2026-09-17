@@ -1,5 +1,7 @@
+// Shared validation helpers used before user input is sent to the AI or form workflows.
 export const MAX_INPUT_LENGTH = 6000;
 
+// Validates free-text input and trims unsupported whitespace before it reaches the server.
 export function validateInput(value) {
   if (typeof value !== 'string' || !value.trim()) {
     return { valid: false, message: 'Please enter a question or some study material first.' };
@@ -10,6 +12,7 @@ export function validateInput(value) {
   return { valid: true, value: value.trim() };
 }
 
+// Verifies that feature-specific payloads contain all required fields and safe values.
 export function validateFeaturePayload(feature, data = {}) {
   const supportedLanguages = new Set(['python', 'java', 'javascript']);
   const fields = {
