@@ -17,6 +17,7 @@
     "express": "^4.21.2",
     "mammoth": "^1.12.3",
     "multer": "^2.4.0",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "tesseract.js": "^7.0.0"
   }
 }
