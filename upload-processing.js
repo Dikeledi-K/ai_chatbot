@@ -86,7 +86,11 @@ export async function extractUploadedText(file, extension) {
 
   if (['.png', '.jpg', '.jpeg', '.webp'].includes(extension)) {
     const result = await Tesseract.recognize(file.buffer, 'eng', { logger: () => {} });
-    return limitText(result.data.text);
+    const text = limitText(result?.data?.text || '');
+    if (!text) {
+      throw new Error('I could not read any text from this image. Please upload a clearer photo or paste the text manually.');
+    }
+    return text;
   }
 
   throw new Error('That file type is not supported. Please upload a PDF, DOCX, TXT, or image file.');

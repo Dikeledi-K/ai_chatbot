@@ -111,7 +111,12 @@ async function uploadMaterial(file) {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'This file could not be processed.');
 
-    state.uploadMaterial = { ...result.file, text: result.text };
+    const extractedText = String(result.text || '').trim();
+    if (!extractedText) {
+      throw new Error('I couldn\'t read the text in this image. Please upload a clearer photo or paste the text manually instead.');
+    }
+
+    state.uploadMaterial = { ...result.file, text: extractedText };
     uploadFileName.textContent = result.file.name;
     uploadFileMeta.textContent = `${result.file.extension.toUpperCase().slice(1)} · ${formatFileSize(result.file.size)} · Text extracted`;
     uploadFile.classList.remove('hidden');
@@ -169,6 +174,11 @@ uploadActions?.addEventListener('click', (event) => {
 });
 
 function selectFeature(feature) {
+  const previousFeature = state.feature;
+  if (feature !== previousFeature) {
+    clearUpload();
+  }
+
   state.feature = feature;
   quizSettings?.classList.toggle('hidden', feature !== 'quiz');
   document.querySelectorAll('.feature-card').forEach((card) => card.classList.toggle('active', card.dataset.feature === feature));
