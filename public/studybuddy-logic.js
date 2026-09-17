@@ -1,3 +1,4 @@
+// Calculates how many quiz answers are correct and how well the learner performed overall.
 export function calculateQuizScore(questions = [], answers = {}) {
   const total = questions.length;
   let correct = 0;
@@ -18,6 +19,7 @@ export function calculateQuizScore(questions = [], answers = {}) {
   };
 }
 
+// Converts a completed quiz into encouraging coaching feedback with strengths, weak areas, and next steps.
 export function buildStudyCoachFeedback(questions = [], answers = {}) {
   const getConceptName = (question, index) => question.concept || `Topic ${index + 1}`;
   const correctConcepts = [];
@@ -69,6 +71,7 @@ export function buildStudyCoachFeedback(questions = [], answers = {}) {
   };
 }
 
+// Turns backend API failures into user-friendly messages that are easy for students to understand.
 export function getFriendlyApiErrorMessage(error = {}) {
   const message = String(error.message || '').toLowerCase();
 
@@ -91,6 +94,7 @@ export function getFriendlyApiErrorMessage(error = {}) {
   return 'StudyBuddy could not reach the AI service. Check your connection and try again.';
 }
 
+// Builds a backup quiz when the AI provider is unavailable or returns an unusable result.
 export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', focus = '', questionCount = 5, sourceText = '') {
   const topicLabel = topic.trim() || 'your topic';
   const count = Math.min(20, Math.max(1, Number(questionCount) || 5));
@@ -543,6 +547,7 @@ export function createFallbackQuiz(topic = 'your topic', difficulty = 'medium', 
   });
 }
 
+// Builds a teaching-focused prompt for code explanation and debugging without completing the student’s work for them.
 export function buildCodingPrompt(language, code, problem = '') {
   const safeLanguage = String(language || '').trim().toLowerCase();
   const supported = new Set(['python', 'java', 'javascript']);
@@ -553,6 +558,7 @@ export function buildCodingPrompt(language, code, problem = '') {
   return `You are a helpful coding tutor for a student. Focus on teaching and explanation rather than giving a completed assignment.\n\nLanguage: ${safeLanguage}\nProblem or goal: ${problem || 'No extra context provided.'}\n\nCode:\n${code}\n\nRespond in a clear learning-focused structure with these sections:\n1. What the code is trying to do\n2. Problems/errors found\n3. Explanation of why the problem occurs\n4. How to fix it\n5. Corrected example where appropriate\n6. A short learning tip\n\nImportant: do not enable academic dishonesty. If this is assignment-related, explain the concept and guide the student through understanding rather than completing the full assignment for them.`;
 }
 
+// Builds a general-purpose career guidance prompt with a structured learning path and advice boundaries.
 export function buildCareerPrompt(career) {
   const cleanCareer = String(career || '').trim();
   if (!cleanCareer) {
@@ -562,6 +568,7 @@ export function buildCareerPrompt(career) {
   return `Provide general career guidance for: ${cleanCareer}.\n\nUse this structure:\n1. Career Overview\n- What the career involves\n- Typical responsibilities\n2. Skills Needed\n- Technical skills\n- Soft skills\n3. Recommended Subjects\n- Useful school subjects\n4. Beginner Projects\n- Simple projects to build experience\n5. Learning Path\n- Beginner\n- Intermediate\n- Advanced\n6. Related Careers\n- Similar careers\n\nImportant requirements:\n- Keep the guidance general and non-guaranteed.\n- Do not claim guaranteed employment or salaries.\n- If the user asks for job market or current requirements, clearly say that requirements can vary by company and location.\n- Keep the answer supportive, realistic and aimed at learning.`;
 }
 
+// Creates the AI prompt used to generate a subject-specific quiz with realistic answers and distractors.
 export function buildQuizPrompt(topic, difficulty = 'easy', focus = '') {
   const safeTopic = String(topic || '').trim();
   if (!safeTopic) {
@@ -578,6 +585,7 @@ export function buildQuizPrompt(topic, difficulty = 'easy', focus = '') {
   return `Create a realistic, subject-specific quiz for a student revising ${safeTopic}.\nDifficulty: ${difficulty}.\nFocus on: ${concepts}.\n\nUse actual subject knowledge and, when study material is supplied, use it as the primary source. Avoid generic questions about memorising definitions. Prefer realistic scenarios, worked examples, code traces, data interpretation, decisions, or applications appropriate to the subject. Make distractors plausible misconceptions, not obviously silly answers.\n\nReturn valid JSON only in this shape:\n{\n  "questions": [\n    {\n      "id": "q1",\n      "concept": "Concept name",\n      "question": "Question text",\n      "options": ["Option 1", "Option 2", "Option 3", "Option 4"],\n      "correctAnswerIndex": 0,\n      "explanation": "Why the answer is correct"\n    }\n  ]\n}\n\nRequirements:\n- 4 or 5 questions\n- Each question should have 4 possible answers\n- Include a concept label for each question\n- Correct answer must be shown by a numeric index\n- Make each question materially different and specific to the subject\n- Keep all answer options similar in length and plausibility\n- Keep the wording clear and supportive for a student\n- Use a friendly learning tone and do not reveal the answers in the question text itself.`;
 }
 
+// Parses the AI's JSON quiz reply and safely falls back to an empty result when the response is malformed.
 export function parseQuizResponse(rawResponse) {
   if (!rawResponse) return [];
 
@@ -597,6 +605,7 @@ export function parseQuizResponse(rawResponse) {
   return [];
 }
 
+// Normalises and deduplicates a quiz response so each question is clean, valid, and within the requested count.
 export function normalizeQuizQuestions(questions = [], questionCount = 5) {
   const seenQuestions = new Set();
   const seenOptionSets = new Set();
