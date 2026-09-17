@@ -21,7 +21,9 @@ test('rejects malformed PDF data safely', async () => {
   await assert.rejects(() => extractUploadedText(file, check.extension));
 });
 
-test('rejects image uploads', () => {
+test('accepts image uploads for supported study materials', () => {
   const file = { originalname: 'diagram.png', mimetype: 'image/png', size: 12, buffer: Buffer.from('image bytes') };
-  assert.equal(validateUploadedFile(file).valid, false);
+  const check = validateUploadedFile(file);
+  assert.equal(check.valid, true);
+  assert.equal(check.extension, '.png');
 });
