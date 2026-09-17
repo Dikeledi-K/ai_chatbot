@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
+import Tesseract from 'tesseract.js';
 
 export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 export const MAX_EXTRACTED_TEXT = 50000;
@@ -8,7 +9,11 @@ export const MAX_EXTRACTED_TEXT = 50000;
 const supportedTypes = new Map([
   ['.pdf', 'application/pdf'],
   ['.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-  ['.txt', 'text/plain']
+  ['.txt', 'text/plain'],
+  ['.png', 'image/png'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+  ['.webp', 'image/webp']
 ]);
 
 export function getFileExtension(filename = '') {
@@ -30,8 +35,10 @@ export function validateUploadedFile(file) {
 
   const extension = getFileExtension(file.originalname);
   const expectedType = supportedTypes.get(extension);
-  if (!expectedType || (file.mimetype && file.mimetype !== expectedType && !(extension === '.txt' && file.mimetype === 'application/octet-stream'))) {
-    return { valid: false, message: 'That file type is not supported. Choose a PDF, DOCX, or TXT file.' };
+  const acceptsBinaryTextFallback = extension === '.txt' && file.mimetype === 'application/octet-stream';
+  const acceptsImageMime = extension && ['.png', '.jpg', '.jpeg', '.webp'].includes(extension) && file.mimetype && file.mimetype.startsWith('image/');
+  if (!expectedType || (file.mimetype && file.mimetype !== expectedType && !acceptsBinaryTextFallback && !acceptsImageMime)) {
+    return { valid: false, message: 'That file type is not supported. Choose a PDF, DOCX, TXT, or image file.' };
   }
 
   return { valid: true, extension, mimeType: expectedType };
@@ -77,7 +84,12 @@ export async function extractUploadedText(file, extension) {
     }
   }
 
-  throw new Error('That file type is not supported. Please upload a PDF, DOCX, or TXT file.');
+  if (['.png', '.jpg', '.jpeg', '.webp'].includes(extension)) {
+    const result = await Tesseract.recognize(file.buffer, 'eng', { logger: () => {} });
+    return limitText(result.data.text);
+  }
+
+  throw new Error('That file type is not supported. Please upload a PDF, DOCX, TXT, or image file.');
 }
 
 export function getUploadMetadata(file, extension, text) {
