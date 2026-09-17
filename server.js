@@ -16,7 +16,7 @@ const upload = multer({
   limits: { fileSize: MAX_UPLOAD_SIZE, files: 1 }
 });
 
-
+// The Express app exposes the StudyBuddy UI and the API routes used by the browser.
 
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -26,6 +26,7 @@ app.get('/api/health', (_request, response) => {
   response.json({ ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY) });
 });
 
+// Handles uploaded study material by validating file size and returning a concise error if the request is invalid.
 const uploadMiddleware = (request, response, next) => upload.single('file')(request, response, (error) => {
   if (!error) return next();
   if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
@@ -54,6 +55,7 @@ app.post('/api/upload', uploadMiddleware, async (request, response) => {
   }
 });
 
+// Calls the Gemini API with the StudyBuddy system prompt and returns the model text response.
 async function requestGemini(prompt, signal) {
   const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -75,6 +77,7 @@ async function requestGemini(prompt, signal) {
   return result.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('').trim();
 }
 
+// Calls the OpenAI chat completion API as the fallback provider when Gemini is not configured.
 async function requestOpenAI(prompt, signal) {
   const baseUrl = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
   const aiResponse = await fetch(`${baseUrl}/chat/completions`, {
