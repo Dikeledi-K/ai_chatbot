@@ -16,6 +16,7 @@ This project combines a browser-based interface with a Node.js Express backend. 
 - Assignment help that breaks down tasks without doing the work for the student
 - Coding explanations and debugging guidance
 - Career guidance with general learning suggestions
+- Downloadable study exports as TXT or PDF for quizzes, plans, and summaries
 - Theme switching and saved chat history in the browser
 - Upload support for PDF, DOCX, TXT, and common image files for study material extraction
 - Server-side validation, timeout handling, and user-friendly API errors
