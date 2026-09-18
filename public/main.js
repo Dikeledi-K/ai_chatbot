@@ -3,7 +3,7 @@ import { applyTheme, getStoredTheme, persistTheme, resolveThemePreference } from
 import { generateConversationTitle, loadStoredConversations, normalizeConversation, saveConversations } from './chat-history.js';
 import { attachExportMenu } from './export-utils.js';
 
-const state = { feature: 'chat', busy: false, quizState: null, history: [], conversations: [], activeConversationId: null, uploadMaterial: null, quizUploadPromise: null };
+const state = { feature: 'chat', busy: false, quizState: null, history: [], conversations: [], activeConversationId: null, uploadMaterial: null, quizUploadPromise: null, userName: null };
 const featureNames = { chat: 'Study chat', explain: 'Explain a topic', summarize: 'Summarise notes', planner: 'Study planner', exam: 'Exam preparation', quiz: 'Quiz me', assignment: 'Assignment helper', coding: 'Coding Helper', career: 'Career Guidance' };
 const form = document.querySelector('#chat-form');
 const input = document.querySelector('#message-input');
@@ -43,6 +43,90 @@ const welcomeMessages = {
   coding: 'Paste your code and explain what you are trying to do. I’ll help you debug it and understand why.',
   career: 'Tell me about a career you are interested in and I’ll suggest skills, subjects, projects, and learning steps.'
 };
+
+const NAME_KEY = 'studybuddy_name';
+
+function loadStoredName() {
+  try {
+    return localStorage.getItem(NAME_KEY) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveStoredName(name) {
+  try {
+    if (name) localStorage.setItem(NAME_KEY, name);
+    else localStorage.removeItem(NAME_KEY);
+  } catch (e) {
+    // ignore
+  }
+}
+
+function updateNameButton() {
+  const btn = document.querySelector('#set-name-button');
+  if (!btn) return;
+  btn.textContent = state.userName ? state.userName : 'Set name';
+}
+
+const setNameButton = document.querySelector('#set-name-button');
+const nameModal = document.querySelector('#name-modal');
+const nameInput = document.querySelector('#name-input');
+const nameForm = document.querySelector('#name-form');
+const nameCancel = document.querySelector('#name-cancel');
+const nameModalClose = document.querySelector('#name-modal-close');
+
+function openNameModal() {
+  if (!nameModal) return;
+  if (nameInput) nameInput.value = state.userName || '';
+  nameModal.classList.remove('hidden');
+  setTimeout(() => { nameInput?.focus(); }, 10);
+}
+
+function closeNameModal() {
+  if (!nameModal) return;
+  nameModal.classList.add('hidden');
+}
+
+// Shows a brief toast message in the UI
+function showToast(message, duration = 3000) {
+  const toast = document.querySelector('#app-toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('visible');
+  // remove after duration
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => {
+    toast.classList.remove('visible');
+  }, duration);
+}
+
+if (setNameButton) {
+  setNameButton.addEventListener('click', openNameModal);
+}
+
+if (nameForm) {
+  nameForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const val = (nameInput?.value || '').trim();
+    state.userName = val || null;
+    saveStoredName(state.userName);
+    updateNameButton();
+    renderMessagesFromHistory();
+    closeNameModal();
+    if (state.userName) showToast(`Saved name: ${state.userName}`);
+    else showToast('Name cleared');
+  });
+}
+
+if (nameCancel) nameCancel.addEventListener('click', closeNameModal);
+if (nameModalClose) nameModalClose.addEventListener('click', closeNameModal);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && nameModal && !nameModal.classList.contains('hidden')) {
+    closeNameModal();
+  }
+});
 
 // Escapes user content so text appears safely inside HTML-rendered chat bubbles.
 function escapeHtml(value) {
@@ -260,7 +344,10 @@ function getCurrentConversation() {
 function renderMessagesFromHistory() {
   messages.innerHTML = '';
   if (!state.history.length) {
-    const welcome = welcomeMessages[state.feature] || welcomeMessages.chat;
+    let welcome = welcomeMessages[state.feature] || welcomeMessages.chat;
+    if (state.feature === 'chat' && state.userName) {
+      welcome = `Hi ${escapeHtml(state.userName)}, welcome back`;
+    }
     const suggestions = state.feature === 'chat'
       ? '<div class="suggestions"><button data-suggestion="Explain photosynthesis to me like I am a beginner." data-feature="explain">Explain a topic</button><button data-suggestion="Help me make a study plan for my next test." data-feature="planner">Plan my study</button></div>'
       : '';
@@ -944,6 +1031,8 @@ document.addEventListener('click', (event) => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
+  state.userName = loadStoredName();
+  updateNameButton();
   selectFeature('chat');
   initializeTheme();
   closeSidebarOnMobile();
