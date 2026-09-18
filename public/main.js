@@ -1,6 +1,7 @@
 import { buildStudyCoachFeedback, calculateQuizScore, getFriendlyApiErrorMessage, createFallbackQuiz, normalizeQuizQuestions } from './studybuddy-logic.js';
 import { applyTheme, getStoredTheme, persistTheme, resolveThemePreference } from './theme.js';
 import { generateConversationTitle, loadStoredConversations, normalizeConversation, saveConversations } from './chat-history.js';
+import { attachExportMenu } from './export-utils.js';
 
 const state = { feature: 'chat', busy: false, quizState: null, history: [], conversations: [], activeConversationId: null, uploadMaterial: null, quizUploadPromise: null };
 const featureNames = { chat: 'Study chat', explain: 'Explain a topic', summarize: 'Summarise notes', planner: 'Study planner', exam: 'Exam preparation', quiz: 'Quiz me', assignment: 'Assignment helper', coding: 'Coding Helper', career: 'Career Guidance' };
@@ -58,13 +59,59 @@ function formatAnswer(value) {
     .replace(/\n/g, '<br>');
 }
 
+function buildExportMeta(feature = 'chat', content = '') {
+  const today = new Date().toISOString().slice(0, 10);
+  const titles = {
+    planner: `Study Plan - ${today}`,
+    exam: `Exam Preparation - ${today}`,
+    summarize: `Notes Summary - ${today}`,
+    quiz: `Quiz Results - ${today}`,
+    assignment: `Assignment Help - ${today}`,
+    coding: `Coding Guidance - ${today}`,
+    career: `Career Guidance - ${today}`,
+    explain: `Topic Explanation - ${today}`,
+    chat: `StudyBuddy Chat Export - ${today}`
+  };
+  const kindMap = { planner: 'study-plan', exam: 'study-plan', summarize: 'summary', quiz: 'quiz' };
+
+  return {
+    title: titles[feature] || titles.chat,
+    content: String(content ?? '').trim(),
+    kind: kindMap[feature] || 'studybuddy'
+  };
+}
+
+function addExportControl(item, exportMeta = null) {
+  if (!item || !exportMeta || !exportMeta.content) return;
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'export-button';
+  button.textContent = 'Export';
+  button.setAttribute('aria-label', `Export ${exportMeta.title}`);
+
+  const wrapper = attachExportMenu({
+    trigger: button,
+    title: exportMeta.title,
+    content: exportMeta.content,
+    kind: exportMeta.kind
+  });
+
+  item.appendChild(wrapper);
+}
+
 // Adds a message bubble to the chat window and returns the created DOM element.
-function addMessage(content, role = 'user', loading = false) {
+function addMessage(content, role = 'user', loading = false, exportMeta = null) {
   const item = document.createElement('div');
   item.className = `message ${role}${loading ? ' loading-message' : ''}`;
   item.innerHTML = role === 'assistant'
     ? `<div class="avatar">✦</div><div class="bubble">${loading ? '<span class="typing"><i></i><i></i><i></i></span>' : `<div>${formatAnswer(content)}</div>`}</div>`
     : `<div class="bubble">${escapeHtml(content).replace(/\n/g, '<br>')}</div>`;
+
+  if (role === 'assistant' && exportMeta && exportMeta.content) {
+    addExportControl(item, exportMeta);
+  }
+
   messages.append(item);
   messages.scrollTop = messages.scrollHeight;
   return item;
@@ -456,7 +503,8 @@ async function sendMessage(message, feature = state.feature) {
     if (!response.ok) throw new Error(result.error || 'Something went wrong.');
 
     const answer = result.answer;
-    addMessage(answer, 'assistant');
+    const exportMeta = buildExportMeta(feature, answer);
+    addMessage(answer, 'assistant', false, exportMeta);
     state.history.push({ role: 'assistant', content: answer, timestamp: Date.now() });
     if (activeConversation) {
       activeConversation.messages = [...state.history];
@@ -574,6 +622,14 @@ function finishQuiz() {
   const { score, strengths, weaknesses, recommendations, positivity } = buildStudyCoachFeedback(state.quizState.questions, state.quizState.answers);
   const summary = document.createElement('div');
   summary.className = 'message assistant';
+  const exportContent = [
+    'Quiz Results',
+    `Score: ${score}`,
+    `Strengths: ${strengths.length ? strengths.join('; ') : 'Keep going — you are building strong foundations.'}`,
+    `Weak areas: ${weaknesses.length ? weaknesses.join('; ') : 'Nothing major to flag — keep revising and challenge yourself with a harder quiz.'}`,
+    `Recommended next steps: ${recommendations.join('; ')}`
+  ].join('\n\n');
+
   summary.innerHTML = `
     <div class="avatar">✦</div>
     <div class="bubble">
@@ -598,6 +654,12 @@ function finishQuiz() {
       </div>
     </div>
   `;
+
+  addExportControl(summary, {
+    title: `Quiz Results - ${new Date().toISOString().slice(0, 10)}`,
+    content: exportContent,
+    kind: 'quiz'
+  });
 
   summary.querySelector('[data-action="retry-quiz"]').addEventListener('click', () => {
     const quizBoard = messages.querySelector('.quiz-board')?.closest('.message');
