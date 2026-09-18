@@ -63,29 +63,40 @@ function saveStoredName(name) {
   }
 }
 
-function updateNameButton() {
-  const btn = document.querySelector('#set-name-button');
-  if (!btn) return;
-  btn.textContent = state.userName ? state.userName : 'Set name';
+function updateNameInput() {
+  const inputEl = document.querySelector('#user-name-input');
+  if (!inputEl) return;
+  inputEl.value = state.userName || '';
 }
 
-const setNameButton = document.querySelector('#set-name-button');
-const nameModal = document.querySelector('#name-modal');
-const nameInput = document.querySelector('#name-input');
-const nameForm = document.querySelector('#name-form');
-const nameCancel = document.querySelector('#name-cancel');
-const nameModalClose = document.querySelector('#name-modal-close');
+const userNameInput = document.querySelector('#user-name-input');
 
-function openNameModal() {
-  if (!nameModal) return;
-  if (nameInput) nameInput.value = state.userName || '';
-  nameModal.classList.remove('hidden');
-  setTimeout(() => { nameInput?.focus(); }, 10);
-}
+function saveUserNameFromInput() {
+  const raw = (userNameInput?.value || '').trim();
+  const nextName = raw || null;
 
-function closeNameModal() {
-  if (!nameModal) return;
-  nameModal.classList.add('hidden');
+  if (state.userName === nextName) return;
+
+  state.userName = nextName;
+  saveStoredName(state.userName);
+  renderMessagesFromHistory();
+  updateNameInput();
+
+  if (state.userName) {
+    const popup = document.querySelector('#welcome-popup');
+    const popupName = document.querySelector('#welcome-popup-name');
+    if (popup && popupName) {
+      popupName.textContent = state.userName;
+      popup.classList.remove('hidden');
+      popup.classList.add('visible');
+      clearTimeout(popup._timer);
+      popup._timer = setTimeout(() => {
+        popup.classList.remove('visible');
+        popup.classList.add('hidden');
+      }, 2200);
+    }
+    showToast(`Saved name: ${state.userName}`);
+  }
 }
 
 // Shows a brief toast message in the UI
@@ -94,39 +105,22 @@ function showToast(message, duration = 3000) {
   if (!toast) return;
   toast.textContent = message;
   toast.classList.add('visible');
-  // remove after duration
   clearTimeout(toast._timeout);
   toast._timeout = setTimeout(() => {
     toast.classList.remove('visible');
   }, duration);
 }
 
-if (setNameButton) {
-  setNameButton.addEventListener('click', openNameModal);
-}
-
-if (nameForm) {
-  nameForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const val = (nameInput?.value || '').trim();
-    state.userName = val || null;
-    saveStoredName(state.userName);
-    updateNameButton();
-    renderMessagesFromHistory();
-    closeNameModal();
-    if (state.userName) showToast(`Saved name: ${state.userName}`);
-    else showToast('Name cleared');
+if (userNameInput) {
+  userNameInput.addEventListener('change', saveUserNameFromInput);
+  userNameInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      userNameInput.blur();
+    }
   });
+  userNameInput.addEventListener('blur', saveUserNameFromInput);
 }
-
-if (nameCancel) nameCancel.addEventListener('click', closeNameModal);
-if (nameModalClose) nameModalClose.addEventListener('click', closeNameModal);
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && nameModal && !nameModal.classList.contains('hidden')) {
-    closeNameModal();
-  }
-});
 
 // Escapes user content so text appears safely inside HTML-rendered chat bubbles.
 function escapeHtml(value) {
@@ -1032,7 +1026,7 @@ document.addEventListener('click', (event) => {
 
 window.addEventListener('DOMContentLoaded', () => {
   state.userName = loadStoredName();
-  updateNameButton();
+  updateNameInput();
   selectFeature('chat');
   initializeTheme();
   closeSidebarOnMobile();

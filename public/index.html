@@ -27,7 +27,9 @@
             <span class="theme-toggle__label">Light mode</span>
           </button>
           <div class="status-pill"><span class="status-dot"></span><span id="status-text">Ready to learn</span></div>
-          <button class="set-name-button" id="set-name-button" type="button" aria-label="Set your name">Set name</button>
+          <label class="name-field" aria-label="Enter your name">
+            <input id="user-name-input" class="name-input" type="text" maxlength="30" placeholder="Enter your name here" />
+          </label>
         </div>
       </header>
 
@@ -121,21 +123,11 @@
       <footer><span>Built for learning, with responsible AI at the centre.</span><a href="/tests/test-cases.md">Testing evidence</a></footer>
     </div>
     <div class="modal-backdrop hidden" id="feature-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="Close">×</button><div class="eyebrow" id="modal-kicker">STUDY PLANNER</div><h2 id="modal-title">Build a plan that fits your week.</h2><form id="feature-form"></form></div></div>
-    <div class="modal-backdrop hidden" id="name-modal">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="name-modal-title">
-        <button class="modal-close" id="name-modal-close" aria-label="Close">×</button>
-        <div class="eyebrow">Preferences</div>
-        <h2 id="name-modal-title">What should I call you?</h2>
-        <form id="name-form">
-          <label>Your name<input id="name-input" name="name" placeholder="e.g. Alex" autocomplete="name" /></label>
-          <div class="modal-actions" style="margin-top:1rem;display:flex;gap:0.5rem;justify-content:flex-end;">
-            <button type="button" class="secondary-action" id="name-cancel">Cancel</button>
-            <button type="submit" class="primary-action" id="name-save">Save</button>
-          </div>
-        </form>
-      </div>
-    </div>
     <div id="app-toast" class="toast hidden" role="status" aria-live="polite"></div>
+    <div id="welcome-popup" class="welcome-popup hidden" aria-live="polite">
+      <strong>Welcome</strong>
+      <span id="welcome-popup-name">there</span>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script type="module" src="/main.js?v=20260915-quiz-export"></script>
   </body>
